@@ -20,13 +20,27 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
           <div className="flex items-center gap-4">
             {user ? (
               <>
-                <button 
-                  onClick={onNewForm}
-                  className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-orange-700 transition-colors shadow-sm"
-                >
-                  <Plus size={18} />
-                  Create Form
-                </button>
+                <a href="/workspace" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                  My Workspace
+                </a>
+                <a href="/templates" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                  Templates
+                </a>
+                <a href="/integrations" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                  Integrations
+                </a>
+                <a href="/products" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                  Products
+                </a>
+                {onNewForm && (
+                  <button 
+                    onClick={onNewForm}
+                    className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-orange-700 transition-colors shadow-sm"
+                  >
+                    <Plus size={18} />
+                    Create Form
+                  </button>
+                )}
                 <div className="flex items-center gap-3 pl-4 border-l border-black/5">
                   <div className="text-right hidden sm:block">
                     <p className="text-sm font-medium">{user.displayName}</p>

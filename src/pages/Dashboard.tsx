@@ -106,8 +106,8 @@ const Dashboard: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Forms</h1>
-            <p className="text-black/50">Manage your forms and view submissions</p>
+            <h1 className="text-3xl font-bold tracking-tight">My Workspace</h1>
+            <p className="text-black/50">Your forms and creations</p>
           </div>
           
           <div className="flex gap-3">
