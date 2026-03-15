@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: uid, email, displayName, photoURL, createdAt
+    //
+    // Collection: forms
+    // Fields: id, title, description, ownerId, fields, createdAt, updatedAt, isPublished
+    //
+    // Collection: forms/{formId}/submissions
+    // Fields: id, formId, data, submittedAt, submitterId
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isFormOwner(formId) {
+      return isAuthenticated() && request.auth.uid == get(/databases/$(database)/documents/forms/$(formId)).data.ownerId;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid is string &&
+             data.email is string;
+    }
+
+    function isValidForm(data) {
+      return data.keys().hasAll(['title', 'ownerId', 'fields']) &&
+             data.title is string && data.title.size() < 200 &&
+             data.ownerId == request.auth.uid &&
+             data.fields is list;
+    }
+
+    function isValidSubmission(data) {
+      return data.keys().hasAll(['formId', 'data', 'submittedAt']) &&
+             data.formId is string &&
+             data.data is map;
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId) && isValidUser(request.resource.data);
+    }
+
+    match /forms/{formId} {
+      allow read: if true; // Public forms can be read by anyone
+      allow create: if isAuthenticated() && isValidForm(request.resource.data);
+      allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid && isValidForm(request.resource.data);
+      
+      match /submissions/{submissionId} {
+        allow read: if isAuthenticated() && get(/databases/$(database)/documents/forms/$(formId)).data.ownerId == request.auth.uid;
+        allow create: if true; // Anyone can submit a form
+      }
+    }
+    
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

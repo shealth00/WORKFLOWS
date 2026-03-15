@@ -1,0 +1,8 @@
+{
+  "name": "FormFlow - AI Form Builder",
+  "description": "A powerful form builder replica with AI-powered form generation, voice input, and submission management.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

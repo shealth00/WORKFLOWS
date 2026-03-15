@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Form": {
+      "title": "Form",
+      "description": "Form definition",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["text", "number", "email", "textarea", "select", "radio", "checkbox", "date"] },
+              "label": { "type": "string" },
+              "placeholder": { "type": "string" },
+              "required": { "type": "boolean" },
+              "options": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "isPublished": { "type": "boolean" }
+      },
+      "required": ["title", "ownerId", "fields"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "Form submission data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "formId": { "type": "string" },
+        "data": { "type": "object" },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "submitterId": { "type": "string" }
+      },
+      "required": ["formId", "data", "submittedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "forms/{formId}": {
+      "schema": "Form",
+      "description": "Form definitions"
+    },
+    "forms/{formId}/submissions/{submissionId}": {
+      "schema": "Submission",
+      "description": "Submissions for a specific form"
+    }
+  }
+}
