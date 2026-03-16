@@ -7,9 +7,17 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
   const { user } = useAuth();
   const [signingIn, setSigningIn] = useState(false);
 
-  const handleSignIn = () => {
+  const handleSignIn = async () => {
     setSigningIn(true);
-    signInWithRedirect(auth, googleProvider);
+    try {
+      await signInWithRedirect(auth, googleProvider);
+    } catch (err: unknown) {
+      setSigningIn(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      const code = (err as { code?: string })?.code;
+      console.error('Sign-in error', code, err);
+      alert(`Sign-in failed: ${code || msg}. Check Firebase Console: enable Google sign-in and add this site's domain to Authorized domains.`);
+    }
   };
 
   return (
