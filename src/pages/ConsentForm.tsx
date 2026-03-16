@@ -2,7 +2,7 @@
  * Sally Health Consent Form – matches the layout and content of the official consent PDF.
  * Shown after sign-in as the primary experience.
  */
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import Navbar from '../components/Navbar';
 import { Loader2 } from 'lucide-react';
@@ -25,6 +25,8 @@ const ConsentForm: React.FC = () => {
     country: 'United States',
     insuranceTraditional: false,
     insuranceAdvantage: false,
+    insuranceTraditionalId: '',
+    insuranceAdvantageId: '',
     appointment: '',
   });
 
@@ -70,6 +72,88 @@ const ConsentForm: React.FC = () => {
 
   const [signature, setSignature] = useState('');
   const [consentChecked, setConsentChecked] = useState(false);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawing = useRef(false);
+  const lastPoint = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const temp = document.createElement('canvas');
+      temp.width = canvas.width;
+      temp.height = canvas.height;
+      const tempCtx = temp.getContext('2d');
+      const ctx = canvas.getContext('2d');
+      if (ctx && tempCtx) {
+        tempCtx.drawImage(canvas, 0, 0);
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = 160 * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        ctx.drawImage(temp, 0, 0, rect.width, 160);
+      }
+    };
+
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
+
+  const getCanvasPoint = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const point =
+      'touches' in e
+        ? e.touches[0]
+        : (e as React.MouseEvent<HTMLCanvasElement>);
+    return {
+      x: point.clientX - rect.left,
+      y: point.clientY - rect.top,
+    };
+  };
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    drawing.current = true;
+    lastPoint.current = getCanvasPoint(e);
+  };
+
+  const stopDrawing = (e?: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (e) e.preventDefault();
+    drawing.current = false;
+    lastPoint.current = null;
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!drawing.current) return;
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const { x, y } = getCanvasPoint(e);
+    const last = lastPoint.current ?? { x, y };
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    lastPoint.current = { x, y };
+  };
+
+  const clearSignatureCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,27 +313,45 @@ const ConsentForm: React.FC = () => {
                       className="w-full mt-2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-2">Insurance</label>
-                    <div className="flex gap-6">
-                      <label className="flex items-center gap-2">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="flex items-center gap-2 mb-2">
+                          <input
+                            type="checkbox"
+                            checked={patient.insuranceTraditional}
+                            onChange={(e) => setPatient((p) => ({ ...p, insuranceTraditional: e.target.checked }))}
+                            className="w-4 h-4 text-orange-600 rounded"
+                          />
+                          <span className="text-sm">Medicare (traditional)</span>
+                        </label>
                         <input
-                          type="checkbox"
-                          checked={patient.insuranceTraditional}
-                          onChange={(e) => setPatient((p) => ({ ...p, insuranceTraditional: e.target.checked }))}
-                          className="w-4 h-4 text-orange-600 rounded"
+                          type="text"
+                          value={patient.insuranceTraditionalId}
+                          onChange={(e) => setPatient((p) => ({ ...p, insuranceTraditionalId: e.target.value }))}
+                          placeholder="Medicare ID number"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         />
-                        <span className="text-sm">Medicare (traditional)</span>
-                      </label>
-                      <label className="flex items-center gap-2">
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-2 mb-2">
+                          <input
+                            type="checkbox"
+                            checked={patient.insuranceAdvantage}
+                            onChange={(e) => setPatient((p) => ({ ...p, insuranceAdvantage: e.target.checked }))}
+                            className="w-4 h-4 text-orange-600 rounded"
+                          />
+                          <span className="text-sm">Medicare (Advantage)</span>
+                        </label>
                         <input
-                          type="checkbox"
-                          checked={patient.insuranceAdvantage}
-                          onChange={(e) => setPatient((p) => ({ ...p, insuranceAdvantage: e.target.checked }))}
-                          className="w-4 h-4 text-orange-600 rounded"
+                          type="text"
+                          value={patient.insuranceAdvantageId}
+                          onChange={(e) => setPatient((p) => ({ ...p, insuranceAdvantageId: e.target.value }))}
+                          placeholder="Medicare Advantage ID number"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         />
-                        <span className="text-sm">Medicare (Advantage)</span>
-                      </label>
+                      </div>
                     </div>
                   </div>
                   <div>
