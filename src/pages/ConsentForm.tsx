@@ -487,6 +487,32 @@ const ConsentForm: React.FC = () => {
                       placeholder="Type your full legal name"
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"
                     />
+                    <p className="text-xs text-slate-500 mt-2">
+                      You can also sign below. Typed name is captured as your legal signature.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Signature surface</label>
+                    <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
+                      <canvas
+                        ref={canvasRef}
+                        className="w-full h-40 touch-none"
+                        onMouseDown={startDrawing}
+                        onMouseMove={draw}
+                        onMouseUp={stopDrawing}
+                        onMouseLeave={stopDrawing}
+                        onTouchStart={startDrawing}
+                        onTouchMove={draw}
+                        onTouchEnd={stopDrawing}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearSignatureCanvas}
+                      className="mt-2 text-xs text-slate-600 hover:text-slate-900 underline"
+                    >
+                      Clear signature
+                    </button>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
