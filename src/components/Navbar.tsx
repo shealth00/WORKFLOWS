@@ -1,10 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../AuthContext';
-import { signInWithPopup, googleProvider, signOut } from '../firebase';
-import { Layout, LogOut, Plus, User as UserIcon } from 'lucide-react';
+import { signInWithPopup, signInWithRedirect, googleProvider, signOut, auth } from '../firebase';
+import { LogOut, Plus, User as UserIcon, Loader2 } from 'lucide-react';
 
 const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
   const { user } = useAuth();
+  const [signingIn, setSigningIn] = useState(false);
+
+  const handleSignIn = () => {
+    setSigningIn(true);
+    signInWithRedirect(auth, googleProvider);
+  };
 
   return (
     <nav className="border-b border-black/5 bg-white/80 backdrop-blur-md sticky top-0 z-50">
@@ -64,9 +70,11 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
               </>
             ) : (
                 <button 
-                  onClick={() => signInWithPopup(auth, googleProvider)}
-                  className="flex items-center gap-2 border border-black/10 px-4 py-2 rounded-full text-sm font-medium hover:bg-black/5 transition-colors"
+                  onClick={handleSignIn}
+                  disabled={signingIn}
+                  className="flex items-center gap-2 border border-black/10 px-4 py-2 rounded-full text-sm font-medium hover:bg-black/5 transition-colors disabled:opacity-50"
                 >
+                  {signingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   Sign In with Google
                 </button>
               )}
@@ -78,4 +86,3 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
 };
 
 export default Navbar;
-import { auth } from '../firebase';

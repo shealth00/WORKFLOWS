@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, onAuthStateChanged, doc, getDoc, setDoc, serverTimestamp, db } from './firebase';
+import { auth, onAuthStateChanged, getRedirectResult, doc, getDoc, setDoc, serverTimestamp, db } from './firebase';
 import { User } from 'firebase/auth';
 import { UserProfile } from './types';
 
@@ -15,6 +15,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getRedirectResult(auth).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
