@@ -93,6 +93,20 @@ const Dashboard: React.FC = () => {
           <p className="text-black/60 mb-8">
             The most powerful AI-driven form builder. Create, manage, and analyze forms with ease.
           </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            <a
+              href="/register"
+              className="px-6 py-3 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 transition-colors"
+            >
+              Create account
+            </a>
+            <a
+              href="/login"
+              className="px-6 py-3 border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              Sign in with email
+            </a>
+          </div>
           <Navbar />
         </div>
       </div>

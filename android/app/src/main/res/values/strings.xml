@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FormFlow</string>
+    <string name="title_activity_main">FormFlow</string>
+    <string name="package_name">com.sallyhealth.workflows</string>
+    <string name="custom_url_scheme">com.sallyhealth.workflows</string>
+</resources>

@@ -4,11 +4,12 @@ If **Sign in with Google** fails, doesn’t redirect, or the popup closes, use t
 
 **Important:** Your app’s config is in `firebase-applet-config.json`. It currently points to project **gen-lang-client-0087483500**. You must enable Google and add authorized domains in **that same project**. If you configured a different project (e.g. **gen-lang-client-0777929601**), either do the steps below in **0087483500** or replace the config with the web app credentials from **0777929601** (Project Settings → Your apps → Web app).
 
-## 1. Enable Google sign-in
+## 1. Enable sign-in methods
 
-1. Open [Firebase Console](https://console.firebase.google.com) → the project your app uses (**gen-lang-client-0087483500** per current config).
+1. Open [Firebase Console](https://console.firebase.google.com) → the project your app uses (e.g. **gen-lang-client-0777929601**).
 2. Go to **Build** → **Authentication** → **Sign-in method**.
-3. Click **Google** → turn **Enable** on → set Project support email → **Save**.
+3. **Google:** Click **Google** → turn **Enable** on → set Project support email → **Save**.
+4. **Email/Password (for Create account):** Click **Email/Password** → turn **Enable** on → **Save**.
 
 ## 2. Add authorized domains
 

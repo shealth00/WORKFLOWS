@@ -16,6 +16,8 @@ import TemplatePreview from './pages/TemplatePreview';
 import Workspace from './pages/Workspace';
 import Integrations from './pages/Integrations';
 import Products from './pages/Products';
+import Register from './pages/Register';
+import Login from './pages/Login';
 import { Loader2 } from 'lucide-react';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -45,6 +47,8 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/" element={<DashboardOrConsent />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/workspace" element={<ProtectedRoute><Workspace /></ProtectedRoute>} />
           <Route path="/dashboard" element={<Navigate to="/workspace" replace />} />
           <Route path="/consent" element={<ProtectedRoute><ConsentForm /></ProtectedRoute>} />
