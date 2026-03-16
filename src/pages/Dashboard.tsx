@@ -106,6 +106,14 @@ const Dashboard: React.FC = () => {
             >
               Sign in with email
             </a>
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLScIkNsHtD9HSG_asDcncc6m-lnDQZmFlqQBwP31r2Lo_6fSKQ/viewform"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 border border-indigo-500 text-indigo-600 font-medium rounded-xl hover:bg-indigo-50 transition-colors"
+            >
+              Patient intake form
+            </a>
           </div>
           <Navbar />
         </div>
