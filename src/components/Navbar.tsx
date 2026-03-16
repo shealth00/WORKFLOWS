@@ -1,22 +1,32 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
-import { signInWithPopup, signInWithRedirect, googleProvider, signOut, auth } from '../firebase';
+import { signInWithPopup, googleProvider, signOut, auth } from '../firebase';
 import { LogOut, Plus, User as UserIcon, Loader2 } from 'lucide-react';
 
 const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [signingIn, setSigningIn] = useState(false);
 
   const handleSignIn = async () => {
     setSigningIn(true);
     try {
-      await signInWithRedirect(auth, googleProvider);
+      await signInWithPopup(auth, googleProvider);
+      navigate('/consent', { replace: true });
     } catch (err: unknown) {
-      setSigningIn(false);
-      const msg = err instanceof Error ? err.message : String(err);
       const code = (err as { code?: string })?.code;
-      console.error('Sign-in error', code, err);
-      alert(`Sign-in failed: ${code || msg}. Check Firebase Console: enable Google sign-in and add this site's domain to Authorized domains.`);
+      if (code === 'auth/popup-blocked') {
+        alert('Sign-in popup was blocked. Please allow popups for this site and try again.');
+      } else if (code === 'auth/popup-closed-by-user') {
+        // User closed the popup; no need to alert
+          } else {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('Sign-in error', code, err);
+        alert(`Sign-in failed: ${code || msg}`);
+      }
+    } finally {
+      setSigningIn(false);
     }
   };
 
