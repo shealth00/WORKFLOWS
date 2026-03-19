@@ -18,7 +18,7 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      - name: Deploy to Firebase Hosting
-        run: npx firebase-tools deploy --only hosting --non-interactive --project gen-lang-client-0777929601
+      - name: Deploy to Firebase (Hosting + Firestore rules)
+        run: npx firebase-tools deploy --only hosting,firestore:rules --non-interactive --project gen-lang-client-0777929601
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
