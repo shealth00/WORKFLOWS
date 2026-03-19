@@ -65,6 +65,89 @@ const FORM_TEMPLATES: MarketplaceTemplate[] = [
       { id: uid(), type: 'textarea', label: 'Special requests', required: false },
     ],
   },
+  {
+    id: 'precision-diagnostic-screening',
+    name: 'Precision Diagnostic Screening Form',
+    description: 'Medication response, symptoms, toxicology, genetics, and wellness screening with computed suggested testing pathways.',
+    fields: [
+      { id: uid(), type: 'text', label: 'Patient Name', required: true },
+      { id: uid(), type: 'date', label: 'DOB', required: true },
+
+      {
+        id: uid(),
+        type: 'checkbox',
+        label: 'Section 1: Medication Response (PGx)',
+        required: false,
+        options: [
+          'Medications not working',
+          'Side effects from medications',
+          'Tried multiple medications for same condition',
+          'Currently taking 5+ medications',
+        ],
+      },
+      {
+        id: uid(),
+        type: 'checkbox',
+        label: 'Section 2: Mental Health',
+        required: false,
+        options: [
+          'Depression / Anxiety',
+          'ADHD',
+          'Tried multiple psychiatric medications',
+          'Poor response or side effects',
+        ],
+      },
+      {
+        id: uid(),
+        type: 'checkbox',
+        label: 'Section 3: Infectious Symptoms (PCR)',
+        required: false,
+        options: [
+          'Fever',
+          'Cough / congestion',
+          'STI concerns',
+          'Urinary symptoms (burning, frequency)',
+          'GI symptoms (diarrhea, nausea)',
+        ],
+      },
+      {
+        id: uid(),
+        type: 'checkbox',
+        label: 'Section 4: Toxicology',
+        required: false,
+        options: [
+          'On controlled medications',
+          'Pain management program',
+          'Concern for medication adherence',
+        ],
+      },
+      {
+        id: uid(),
+        type: 'checkbox',
+        label: 'Section 5: Family History (Genetics)',
+        required: false,
+        options: [
+          'Cancer in family',
+          'Heart disease',
+          'Neurological disease',
+        ],
+      },
+      {
+        id: uid(),
+        type: 'checkbox',
+        label: 'Section 6: Wellness / Nutrition',
+        required: false,
+        options: [
+          'Weight issues',
+          'Vitamin deficiencies',
+          'Interested in personalized diet',
+        ],
+      },
+
+      { id: uid(), type: 'checkbox', label: 'Consent', required: false, options: ['I consent to appropriate lab/genetic testing based on my responses'] },
+      { id: uid(), type: 'text', label: 'Signature (typed)', required: true, placeholder: 'Type full legal name' },
+    ],
+  },
 ];
 
 /** Workflow Templates — automation pipelines. */

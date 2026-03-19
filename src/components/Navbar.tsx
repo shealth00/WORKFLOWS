@@ -50,6 +50,12 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
                 <a href="/templates" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
                   Templates
                 </a>
+                <a href="/precision-screening" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                  Precision Screening
+                </a>
+                <a href="/precision-diagnostic" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                  Precision Diagnostic
+                </a>
                 <a href="/integrations" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
                   Integrations
                 </a>

@@ -14,6 +14,7 @@ const Submissions: React.FC = () => {
   const [form, setForm] = useState<FormDefinition | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasComputedResults = submissions.some((s) => Boolean(s.results));
 
   useEffect(() => {
     if (!id || !user) return;
@@ -55,10 +56,29 @@ const Submissions: React.FC = () => {
   const exportToCSV = () => {
     if (!form || submissions.length === 0) return;
     
-    const headers = ['Submitted At', ...form.fields.map(f => f.label)];
+    const resultHeaders = hasComputedResults
+      ? ['Score', 'Decision', 'Priority', 'Suggested Orders']
+      : [];
+    const headers = ['Submitted At', ...form.fields.map(f => f.label), ...resultHeaders];
     const rows = submissions.map(sub => [
       format(sub.submittedAt?.toDate() || new Date(), 'yyyy-MM-dd HH:mm:ss'),
-      ...form.fields.map(f => sub.data[f.id] || '')
+      ...form.fields.map((f) => {
+        const value = sub.data[f.id];
+        return Array.isArray(value) ? value.join(', ') : value || '';
+      }),
+      ...(hasComputedResults
+        ? [
+            sub.results?.score ?? '',
+            sub.results?.decision ?? '',
+            sub.results?.priority ?? '',
+            Array.isArray(sub.results?.suggestedOrders)
+              ? sub.results.suggestedOrders
+                  .map((o: any) => o?.displayName || o?.testKey)
+                  .filter(Boolean)
+                  .join('; ')
+              : '',
+          ]
+        : [])
     ]);
 
     const csvContent = [
@@ -125,6 +145,14 @@ const Submissions: React.FC = () => {
                         {field.label}
                       </th>
                     ))}
+                    {hasComputedResults && (
+                      <>
+                        <th className="px-6 py-4 text-xs font-bold text-black/40 uppercase tracking-widest min-w-[100px]">Score</th>
+                        <th className="px-6 py-4 text-xs font-bold text-black/40 uppercase tracking-widest min-w-[140px]">Decision</th>
+                        <th className="px-6 py-4 text-xs font-bold text-black/40 uppercase tracking-widest min-w-[120px]">Priority</th>
+                        <th className="px-6 py-4 text-xs font-bold text-black/40 uppercase tracking-widest min-w-[220px]">Suggested Orders</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
@@ -140,6 +168,27 @@ const Submissions: React.FC = () => {
                             : String(sub.data[field.id] || '-')}
                         </td>
                       ))}
+                      {hasComputedResults && (
+                        <>
+                          <td className="px-6 py-4 text-sm text-black/70">
+                            {sub.results?.score ?? '-'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-black/70">
+                            {sub.results?.decision ?? '-'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-black/70">
+                            {sub.results?.priority ?? '-'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-black/70">
+                            {Array.isArray(sub.results?.suggestedOrders)
+                              ? sub.results.suggestedOrders
+                                  .map((o: any) => o?.displayName || o?.testKey)
+                                  .filter(Boolean)
+                                  .join(', ') || '-'
+                              : '-'}
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>

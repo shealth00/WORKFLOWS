@@ -16,6 +16,8 @@ import TemplatePreview from './pages/TemplatePreview';
 import Workspace from './pages/Workspace';
 import Integrations from './pages/Integrations';
 import Products from './pages/Products';
+import PrecisionScreening from './pages/PrecisionScreening';
+import PrecisionDiagnostic from './pages/PrecisionDiagnostic';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import { Loader2 } from 'lucide-react';
@@ -55,6 +57,8 @@ export default function App() {
           <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
           <Route path="/integrations" element={<ProtectedRoute><Integrations /></ProtectedRoute>} />
           <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+          <Route path="/precision-screening" element={<ProtectedRoute><PrecisionScreening /></ProtectedRoute>} />
+          <Route path="/precision-diagnostic" element={<ProtectedRoute><PrecisionDiagnostic /></ProtectedRoute>} />
           <Route path="/templates/:type" element={<ProtectedRoute><TemplateLibrary /></ProtectedRoute>} />
           <Route path="/templates/:type/:templateId" element={<ProtectedRoute><TemplatePreview /></ProtectedRoute>} />
           <Route path="/builder/:id" element={<ProtectedRoute><Builder /></ProtectedRoute>} />

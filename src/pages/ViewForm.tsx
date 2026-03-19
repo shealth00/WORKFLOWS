@@ -4,6 +4,8 @@ import { db, doc, getDoc, addDoc, collection, serverTimestamp } from '../firebas
 import { FormDefinition } from '../types';
 import { Loader2, CheckCircle2, Mic, MicOff, Volume2 } from 'lucide-react';
 import { transcribeAudio, generateSpeech } from '../geminiService';
+import { evaluatePrecisionScreening } from '../logic/precisionScreening';
+import type { PrecisionScreeningResponses } from '../types';
 
 const ViewForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,14 +36,66 @@ const ViewForm: React.FC = () => {
     fetchForm();
   }, [id]);
 
+  const buildPrecisionDiagnosticResultsIfApplicable = () => {
+    if (!form) return null;
+    if (form.title !== 'Precision Diagnostic Screening Form') return null;
+
+    const sectionValues = (label: string): string[] => {
+      const field = form.fields.find((f) => f.label === label);
+      if (!field) return [];
+      const value = formData[field.id];
+      return Array.isArray(value) ? value : [];
+    };
+
+    const sec1 = sectionValues('Section 1: Medication Response (PGx)');
+    const sec2 = sectionValues('Section 2: Mental Health');
+    const sec3 = sectionValues('Section 3: Infectious Symptoms (PCR)');
+    const sec4 = sectionValues('Section 4: Toxicology');
+    const sec5 = sectionValues('Section 5: Family History (Genetics)');
+    const sec6 = sectionValues('Section 6: Wellness / Nutrition');
+
+    const responses: PrecisionScreeningResponses = {
+      medFailure: sec1.includes('Medications not working'),
+      sideEffects: sec1.includes('Side effects from medications'),
+      triedMultipleMedications: sec1.includes('Tried multiple medications for same condition'),
+      polypharmacy: sec1.includes('Currently taking 5+ medications'),
+
+      depressionAnxiety: sec2.includes('Depression / Anxiety'),
+      adhd: sec2.includes('ADHD'),
+      mentalTriedMultipleMeds: sec2.includes('Tried multiple psychiatric medications'),
+      poorResponse: sec2.includes('Poor response or side effects'),
+
+      fever: sec3.includes('Fever'),
+      coughCongestion: sec3.includes('Cough / congestion'),
+      stiConcerns: sec3.includes('STI concerns'),
+      urinarySymptoms: sec3.includes('Urinary symptoms (burning, frequency)'),
+      giSymptoms: sec3.includes('GI symptoms (diarrhea, nausea)'),
+
+      controlledMeds: sec4.includes('On controlled medications') || sec4.includes('Concern for medication adherence'),
+      painManagement: sec4.includes('Pain management program'),
+
+      cancerFamilyHistory: sec5.includes('Cancer in family'),
+      heartDiseaseFamilyHistory: sec5.includes('Heart disease'),
+      neuroFamilyHistory: sec5.includes('Neurological disease'),
+
+      weightLoss: sec6.includes('Weight issues'),
+      nutritionOptimization: sec6.includes('Interested in personalized diet'),
+      vitaminConcerns: sec6.includes('Vitamin deficiencies'),
+    };
+
+    return evaluatePrecisionScreening(responses);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !form) return;
     setSubmitting(true);
     try {
+      const precisionDiagnosticResults = buildPrecisionDiagnosticResultsIfApplicable();
       await addDoc(collection(db, 'forms', id, 'submissions'), {
         formId: id,
         data: formData,
+        results: precisionDiagnosticResults,
         submittedAt: serverTimestamp()
       });
       setSubmitted(true);
