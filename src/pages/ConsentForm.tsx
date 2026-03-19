@@ -6,6 +6,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import Navbar from '../components/Navbar';
 import { Loader2 } from 'lucide-react';
+import { storage, ref, uploadBytes, getDownloadURL } from '../firebase';
 
 const ConsentForm: React.FC = () => {
   const { user } = useAuth();
@@ -27,6 +28,8 @@ const ConsentForm: React.FC = () => {
     insuranceAdvantage: false,
     insuranceTraditionalId: '',
     insuranceAdvantageId: '',
+    insuranceCardUrl: '',
+    idCardUrl: '',
     appointment: '',
   });
 
@@ -72,6 +75,8 @@ const ConsentForm: React.FC = () => {
 
   const [signature, setSignature] = useState('');
   const [consentChecked, setConsentChecked] = useState(false);
+  const [uploadingInsurance, setUploadingInsurance] = useState(false);
+  const [uploadingId, setUploadingId] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
@@ -153,6 +158,27 @@ const ConsentForm: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const handleFileUpload = async (file: File, kind: 'insurance' | 'id') => {
+    if (!user || !file) return;
+    kind === 'insurance' ? setUploadingInsurance(true) : setUploadingId(true);
+    try {
+      const path = `consent-uploads/${user.uid}/${kind}-${Date.now()}-${file.name}`;
+      const storageRef = ref(storage, path);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setPatient((p) =>
+        kind === 'insurance'
+          ? { ...p, insuranceCardUrl: url }
+          : { ...p, idCardUrl: url }
+      );
+    } catch (err) {
+      console.error('Upload failed', err);
+      alert('Failed to upload image. Please try again.');
+    } finally {
+      kind === 'insurance' ? setUploadingInsurance(false) : setUploadingId(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -315,7 +341,7 @@ const ConsentForm: React.FC = () => {
                   </div>
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-2">Insurance</label>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-4 sm:grid-cols-2">
                       <div>
                         <label className="flex items-center gap-2 mb-2">
                           <input
@@ -331,8 +357,27 @@ const ConsentForm: React.FC = () => {
                           value={patient.insuranceTraditionalId}
                           onChange={(e) => setPatient((p) => ({ ...p, insuranceTraditionalId: e.target.value }))}
                           placeholder="Medicare ID number"
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mb-2"
                         />
+                        <label className="block text-xs font-medium text-slate-500 mb-1">
+                          Upload insurance card image (front/back)
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingInsurance}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, 'insurance');
+                          }}
+                          className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
+                        />
+                        {uploadingInsurance && (
+                          <p className="mt-1 text-xs text-slate-500">Uploading insurance card…</p>
+                        )}
+                        {patient.insuranceCardUrl && !uploadingInsurance && (
+                          <p className="mt-1 text-xs text-emerald-600">Insurance card uploaded.</p>
+                        )}
                       </div>
                       <div>
                         <label className="flex items-center gap-2 mb-2">
@@ -349,8 +394,27 @@ const ConsentForm: React.FC = () => {
                           value={patient.insuranceAdvantageId}
                           onChange={(e) => setPatient((p) => ({ ...p, insuranceAdvantageId: e.target.value }))}
                           placeholder="Medicare Advantage ID number"
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mb-2"
                         />
+                        <label className="block text-xs font-medium text-slate-500 mb-1">
+                          Upload state ID / driver license image
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingId}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, 'id');
+                          }}
+                          className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
+                        />
+                        {uploadingId && (
+                          <p className="mt-1 text-xs text-slate-500">Uploading ID image…</p>
+                        )}
+                        {patient.idCardUrl && !uploadingId && (
+                          <p className="mt-1 text-xs text-emerald-600">ID image uploaded.</p>
+                        )}
                       </div>
                     </div>
                   </div>
