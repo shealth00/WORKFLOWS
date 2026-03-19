@@ -250,12 +250,10 @@ export default function PrecisionScreening() {
     }
   };
 
+  // Spec requires only Name/DOB/Gender to proceed.
+  // Phone/Email are optional so the funnel doesn't break on incomplete intake.
   const canContinuePatientInfo =
-    !isBlank(patient.name) &&
-    !isBlank(patient.dob) &&
-    !isBlank(patient.gender) &&
-    !isBlank(patient.phone) &&
-    !isBlank(patient.email);
+    !isBlank(patient.name) && !isBlank(patient.dob) && !isBlank(patient.gender);
 
   const canSubmit =
     consent.consented &&
@@ -455,7 +453,7 @@ export default function PrecisionScreening() {
               </div>
             </div>
             {!canContinuePatientInfo ? (
-              <p className="mt-4 text-sm text-red-600">Please complete all fields to continue.</p>
+              <p className="mt-4 text-sm text-red-600">Please complete required fields to continue.</p>
             ) : null}
             <div className="mt-10 flex gap-3">
               <button
