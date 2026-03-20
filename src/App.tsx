@@ -24,9 +24,16 @@ const PrecisionDiagnostic = lazy(() => import('./pages/PrecisionDiagnostic'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Register = lazy(() => import('./pages/Register'));
 const Login = lazy(() => import('./pages/Login'));
+const HealthDashboard = lazy(() => import('./pages/HealthDashboard'));
 
 const PageFallback = () => (
-  <div className="min-h-screen flex items-center justify-center bg-slate-50">
+  <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
+    <img
+      src="/sally-health-badge.png"
+      alt="Sally Health"
+      className="w-16 h-16 object-contain animate-pulse"
+      onError={(e) => e.currentTarget.style.display = 'none'}
+    />
     <Loader2 className="animate-spin text-orange-600" size={40} />
   </div>
 );
@@ -34,11 +41,7 @@ const PageFallback = () => (
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <Loader2 className="animate-spin text-orange-600" size={40} />
-    </div>
-  );
+  if (loading) return <PageFallback />;
   
   if (!user) return <Navigate to="/" />;
   return <>{children}</>;
@@ -70,6 +73,7 @@ export default function App() {
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/precision-screening" element={<ProtectedRoute><PrecisionScreening /></ProtectedRoute>} />
           <Route path="/precision-diagnostic" element={<ProtectedRoute><PrecisionDiagnostic /></ProtectedRoute>} />
+          <Route path="/health" element={<ProtectedRoute><HealthDashboard /></ProtectedRoute>} />
           <Route path="/templates/:type" element={<ProtectedRoute><TemplateLibrary /></ProtectedRoute>} />
           <Route path="/templates/:type/:templateId" element={<ProtectedRoute><TemplatePreview /></ProtectedRoute>} />
           <Route path="/builder/:id" element={<ProtectedRoute><Builder /></ProtectedRoute>} />
@@ -81,4 +85,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

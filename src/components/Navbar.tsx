@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { signInWithPopup, googleProvider, signOut, auth } from '../firebase';
-import { LogOut, Plus, User as UserIcon, Loader2 } from 'lucide-react';
+import { LogOut, Plus, User as UserIcon, Loader2, Heart } from 'lucide-react';
 
 const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
   const { user } = useAuth();
@@ -34,37 +34,44 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
     <nav className="border-b border-black/5 bg-white/80 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = '/'}>
-            <div className="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold">
-              F
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+            <img
+              src="/sally-health-badge.png"
+              alt="Sally Health"
+              className="w-8 h-8 object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+            <div className="hidden w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold">
+              S
             </div>
-            <span className="text-xl font-bold tracking-tight">FormFlow</span>
+            <span className="text-xl font-bold tracking-tight">Sally Health</span>
           </div>
 
           <div className="flex items-center gap-4">
             {user ? (
               <>
-                <a href="/workspace" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                <Link to="/workspace" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
                   My Workspace
-                </a>
-                <a href="/templates" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                </Link>
+                <Link to="/templates" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
                   Templates
-                </a>
-                <a href="/precision-screening" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                </Link>
+                <Link to="/precision-screening" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
                   Precision Screening
-                </a>
-                <a href="/precision-diagnostic" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                </Link>
+                <Link to="/precision-diagnostic" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
                   Precision Diagnostic
-                </a>
-                <a href="/integrations" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
-                  Integrations
-                </a>
-                <a href="/products" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
-                  Products
-                </a>
-                <a href="/settings" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                </Link>
+                <Link to="/health" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors bg-orange-50 border border-orange-100 px-4">
+                  <Heart size={16} className="text-orange-600" />
+                  Health Data
+                </Link>
+                <Link to="/settings" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
                   Settings
-                </a>
+                </Link>
                 {onNewForm && (
                   <button 
                     onClick={onNewForm}

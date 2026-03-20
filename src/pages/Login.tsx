@@ -42,12 +42,17 @@ export default function Login() {
       <main className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8">
-            <div className="w-14 h-14 bg-orange-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-6">
-              F
-            </div>
+            <img
+              src="/sally-health-badge.png"
+              alt="Sally Health"
+              className="w-20 h-20 mx-auto mb-6 object-contain"
+              onError={(e) => {
+                e.currentTarget.src = 'https://raw.githubusercontent.com/lucide-react/lucide/main/icons/shield-check.svg';
+              }}
+            />
             <h1 className="text-2xl font-bold text-center text-slate-900 mb-2">Sign in</h1>
             <p className="text-slate-500 text-center text-sm mb-6">
-              Sign in with your email and password.
+              Sign in to your Sally Health account.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
