@@ -3,16 +3,18 @@
  * Shown after sign-in as the primary experience.
  */
 import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import Navbar from '../components/Navbar';
 import { Loader2 } from 'lucide-react';
-import { storage, ref, uploadBytes, getDownloadURL } from '../firebase';
+import { storage, ref, uploadBytes, getDownloadURL, db, collection, addDoc, serverTimestamp } from '../firebase';
 
 const ConsentForm: React.FC = () => {
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const [collectorName, setCollectorName] = useState('');
   const [patient, setPatient] = useState({
     fullName: user?.displayName || '',
     email: user?.email || '',
@@ -26,10 +28,19 @@ const ConsentForm: React.FC = () => {
     country: 'United States',
     insuranceTraditional: false,
     insuranceAdvantage: false,
+    insuranceMedicaid: false,
     insuranceTraditionalId: '',
     insuranceAdvantageId: '',
-    insuranceCardUrl: '',
-    idCardUrl: '',
+    insuranceMedicaidId: '',
+    insuranceMedicaidProvider: '',
+    insuranceTraditionalCardUrlFront: '',
+    insuranceTraditionalCardUrlBack: '',
+    insuranceAdvantageCardUrlFront: '',
+    insuranceAdvantageCardUrlBack: '',
+    insuranceMedicaidCardUrlFront: '',
+    insuranceMedicaidCardUrlBack: '',
+    idCardUrlFront: '',
+    idCardUrlBack: '',
     appointment: '',
   });
 
@@ -75,8 +86,7 @@ const ConsentForm: React.FC = () => {
 
   const [signature, setSignature] = useState('');
   const [consentChecked, setConsentChecked] = useState(false);
-  const [uploadingInsurance, setUploadingInsurance] = useState(false);
-  const [uploadingId, setUploadingId] = useState(false);
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
@@ -160,34 +170,82 @@ const ConsentForm: React.FC = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  const handleFileUpload = async (file: File, kind: 'insurance' | 'id') => {
+  type UploadKind =
+    | 'insurance-traditional-front'
+    | 'insurance-traditional-back'
+    | 'insurance-advantage-front'
+    | 'insurance-advantage-back'
+    | 'insurance-medicaid-front'
+    | 'insurance-medicaid-back'
+    | 'id-front'
+    | 'id-back';
+
+  const handleFileUpload = async (file: File, kind: UploadKind) => {
     if (!user || !file) return;
-    kind === 'insurance' ? setUploadingInsurance(true) : setUploadingId(true);
+    setUploading((u) => ({ ...u, [kind]: true }));
     try {
       const path = `consent-uploads/${user.uid}/${kind}-${Date.now()}-${file.name}`;
       const storageRef = ref(storage, path);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      setPatient((p) =>
-        kind === 'insurance'
-          ? { ...p, insuranceCardUrl: url }
-          : { ...p, idCardUrl: url }
-      );
+      setPatient((p) => {
+        const updates: Partial<typeof p> = {};
+        if (kind === 'insurance-traditional-front') updates.insuranceTraditionalCardUrlFront = url;
+        else if (kind === 'insurance-traditional-back') updates.insuranceTraditionalCardUrlBack = url;
+        else if (kind === 'insurance-advantage-front') updates.insuranceAdvantageCardUrlFront = url;
+        else if (kind === 'insurance-advantage-back') updates.insuranceAdvantageCardUrlBack = url;
+        else if (kind === 'insurance-medicaid-front') updates.insuranceMedicaidCardUrlFront = url;
+        else if (kind === 'insurance-medicaid-back') updates.insuranceMedicaidCardUrlBack = url;
+        else if (kind === 'id-front') updates.idCardUrlFront = url;
+        else if (kind === 'id-back') updates.idCardUrlBack = url;
+        return { ...p, ...updates };
+      });
     } catch (err) {
       console.error('Upload failed', err);
       alert('Failed to upload image. Please try again.');
     } finally {
-      kind === 'insurance' ? setUploadingInsurance(false) : setUploadingId(false);
+      setUploading((u) => ({ ...u, [kind]: false }));
+    }
+  };
+
+  const captureSignatureDataUrl = (): string | null => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    try {
+      return canvas.toDataURL('image/png');
+    } catch {
+      return null;
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     setSubmitting(true);
-    // Simulate submit – in production, save to Firestore
-    await new Promise((r) => setTimeout(r, 800));
-    setSubmitted(true);
-    setSubmitting(false);
+    try {
+      const signatureImageDataUrl = captureSignatureDataUrl();
+      const payload = {
+        submittedAt: serverTimestamp(),
+        submittedByUid: user.uid,
+        collectorName: collectorName.trim() || null,
+        patient,
+        respiratory,
+        uti,
+        sti,
+        nailFungus,
+        signature,
+        signatureImageDataUrl,
+        consentChecked,
+        sendToGoogleDrive: true,
+      };
+      await addDoc(collection(db, 'consentSubmissions'), payload);
+      setSubmitted(true);
+    } catch (err) {
+      console.error('Submit failed', err);
+      alert('Failed to submit consent form. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!user) {
@@ -201,7 +259,8 @@ const ConsentForm: React.FC = () => {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <Navbar />
         <div className="bg-white rounded-3xl p-12 shadow-xl max-w-md w-full text-center">
           <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,7 +268,13 @@ const ConsentForm: React.FC = () => {
             </svg>
           </div>
           <h1 className="text-2xl font-bold mb-2">Consent submitted</h1>
-          <p className="text-black/50">Your Sally Health consent form has been received.</p>
+          <p className="text-black/50 mb-6">Your Sally Health consent form has been received. A copy has been sent to Google Drive.</p>
+          <Link
+            to="/consent-submissions"
+            className="inline-block text-orange-600 font-medium hover:underline"
+          >
+            View all submissions →
+          </Link>
         </div>
       </div>
     );
@@ -244,6 +309,21 @@ const ConsentForm: React.FC = () => {
             </p>
 
             <form onSubmit={handleSubmit} className="mt-10 space-y-10">
+              {/* Collector info */}
+              <section>
+                <h2 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2">Collector information</h2>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Collector name</label>
+                  <input
+                    type="text"
+                    value={collectorName}
+                    onChange={(e) => setCollectorName(e.target.value)}
+                    placeholder="Name of person collecting this form"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">A copy of this form will be sent to Google Drive.</p>
+                </div>
+              </section>
               {/* Patient info */}
               <section>
                 <h2 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2">Patient information</h2>
@@ -339,6 +419,53 @@ const ConsentForm: React.FC = () => {
                       className="w-full mt-2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
+                  {/* Driver license – front and back */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Driver license / State ID</label>
+                    <p className="text-xs text-slate-500 mb-2">Upload both front and back of your driver license or state ID.</p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">Front</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={!!uploading['id-front']}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, 'id-front');
+                          }}
+                          className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
+                        />
+                        {uploading['id-front'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
+                        {patient.idCardUrlFront && !uploading['id-front'] && (
+                          <div className="mt-2">
+                            <img src={patient.idCardUrlFront} alt="ID front" className="h-20 w-auto rounded border border-slate-200 object-cover" />
+                            <p className="mt-1 text-xs text-emerald-600">Front uploaded.</p>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">Back</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={!!uploading['id-back']}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, 'id-back');
+                          }}
+                          className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
+                        />
+                        {uploading['id-back'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
+                        {patient.idCardUrlBack && !uploading['id-back'] && (
+                          <div className="mt-2">
+                            <img src={patient.idCardUrlBack} alt="ID back" className="h-20 w-auto rounded border border-slate-200 object-cover" />
+                            <p className="mt-1 text-xs text-emerald-600">Back uploaded.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-2">Insurance</label>
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -359,24 +486,41 @@ const ConsentForm: React.FC = () => {
                           placeholder="Medicare ID number"
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mb-2"
                         />
-                        <label className="block text-xs font-medium text-slate-500 mb-1">
-                          Upload insurance card image (front/back)
-                        </label>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">Insurance card – front</label>
                         <input
                           type="file"
                           accept="image/*"
-                          disabled={uploadingInsurance}
+                          disabled={!!uploading['insurance-traditional-front']}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) handleFileUpload(file, 'insurance');
+                            if (file) handleFileUpload(file, 'insurance-traditional-front');
+                          }}
+                          className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100 mb-1"
+                        />
+                        {uploading['insurance-traditional-front'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
+                        {patient.insuranceTraditionalCardUrlFront && !uploading['insurance-traditional-front'] && (
+                          <div className="mt-2">
+                            <img src={patient.insuranceTraditionalCardUrlFront} alt="Insurance front" className="h-16 w-auto rounded border border-slate-200 object-cover" />
+                            <p className="mt-1 text-xs text-emerald-600">Front uploaded.</p>
+                          </div>
+                        )}
+                        <label className="block text-xs font-medium text-slate-500 mb-1 mt-2">Insurance card – back</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={!!uploading['insurance-traditional-back']}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, 'insurance-traditional-back');
                           }}
                           className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
                         />
-                        {uploadingInsurance && (
-                          <p className="mt-1 text-xs text-slate-500">Uploading insurance card…</p>
-                        )}
-                        {patient.insuranceCardUrl && !uploadingInsurance && (
-                          <p className="mt-1 text-xs text-emerald-600">Insurance card uploaded.</p>
+                        {uploading['insurance-traditional-back'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
+                        {patient.insuranceTraditionalCardUrlBack && !uploading['insurance-traditional-back'] && (
+                          <div className="mt-2">
+                            <img src={patient.insuranceTraditionalCardUrlBack} alt="Insurance back" className="h-16 w-auto rounded border border-slate-200 object-cover" />
+                            <p className="mt-1 text-xs text-emerald-600">Back uploaded.</p>
+                          </div>
                         )}
                       </div>
                       <div>
@@ -396,26 +540,122 @@ const ConsentForm: React.FC = () => {
                           placeholder="Medicare Advantage ID number"
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mb-2"
                         />
-                        <label className="block text-xs font-medium text-slate-500 mb-1">
-                          Upload state ID / driver license image
-                        </label>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">Insurance card – front</label>
                         <input
                           type="file"
                           accept="image/*"
-                          disabled={uploadingId}
+                          disabled={!!uploading['insurance-advantage-front']}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) handleFileUpload(file, 'id');
+                            if (file) handleFileUpload(file, 'insurance-advantage-front');
+                          }}
+                          className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100 mb-1"
+                        />
+                        {uploading['insurance-advantage-front'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
+                        {patient.insuranceAdvantageCardUrlFront && !uploading['insurance-advantage-front'] && (
+                          <div className="mt-2">
+                            <img src={patient.insuranceAdvantageCardUrlFront} alt="Insurance front" className="h-16 w-auto rounded border border-slate-200 object-cover" />
+                            <p className="mt-1 text-xs text-emerald-600">Front uploaded.</p>
+                          </div>
+                        )}
+                        <label className="block text-xs font-medium text-slate-500 mb-1 mt-2">Insurance card – back</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={!!uploading['insurance-advantage-back']}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, 'insurance-advantage-back');
                           }}
                           className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
                         />
-                        {uploadingId && (
-                          <p className="mt-1 text-xs text-slate-500">Uploading ID image…</p>
-                        )}
-                        {patient.idCardUrl && !uploadingId && (
-                          <p className="mt-1 text-xs text-emerald-600">ID image uploaded.</p>
+                        {uploading['insurance-advantage-back'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
+                        {patient.insuranceAdvantageCardUrlBack && !uploading['insurance-advantage-back'] && (
+                          <div className="mt-2">
+                            <img src={patient.insuranceAdvantageCardUrlBack} alt="Insurance back" className="h-16 w-auto rounded border border-slate-200 object-cover" />
+                            <p className="mt-1 text-xs text-emerald-600">Back uploaded.</p>
+                          </div>
                         )}
                       </div>
+                    </div>
+                    {/* Medicaid (optional) */}
+                    <div className="mt-4 pt-4 border-t border-slate-200">
+                      <label className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={patient.insuranceMedicaid}
+                          onChange={(e) => setPatient((p) => ({ ...p, insuranceMedicaid: e.target.checked }))}
+                          className="w-4 h-4 text-orange-600 rounded"
+                        />
+                        <span className="text-sm">Medicaid (optional)</span>
+                      </label>
+                      {patient.insuranceMedicaid && (
+                        <div className="pl-6 space-y-2">
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">Medicaid provider</label>
+                            <select
+                              value={patient.insuranceMedicaidProvider}
+                              onChange={(e) => setPatient((p) => ({ ...p, insuranceMedicaidProvider: e.target.value }))}
+                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                            >
+                              <option value="">Select provider</option>
+                              <option value="Aetna">Aetna</option>
+                              <option value="BCBS">BCBS (Blue Cross Blue Shield)</option>
+                              <option value="Humana">Humana</option>
+                              <option value="United">United Healthcare</option>
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            value={patient.insuranceMedicaidId}
+                            onChange={(e) => setPatient((p) => ({ ...p, insuranceMedicaidId: e.target.value }))}
+                            placeholder="Medicaid ID number"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          />
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <div>
+                              <label className="block text-xs font-medium text-slate-500 mb-1">Medicaid card – front</label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                disabled={!!uploading['insurance-medicaid-front']}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleFileUpload(file, 'insurance-medicaid-front');
+                                }}
+                                className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
+                              />
+                              {uploading['insurance-medicaid-front'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
+                              {patient.insuranceMedicaidCardUrlFront && !uploading['insurance-medicaid-front'] && (
+                                <div className="mt-2">
+                                  <img src={patient.insuranceMedicaidCardUrlFront} alt="Medicaid front" className="h-16 w-auto rounded border border-slate-200 object-cover" />
+                                  <p className="mt-1 text-xs text-emerald-600">Front uploaded.</p>
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-slate-500 mb-1">Medicaid card – back</label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                disabled={!!uploading['insurance-medicaid-back']}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleFileUpload(file, 'insurance-medicaid-back');
+                                }}
+                                className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
+                              />
+                              {uploading['insurance-medicaid-back'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
+                              {patient.insuranceMedicaidCardUrlBack && !uploading['insurance-medicaid-back'] && (
+                                <div className="mt-2">
+                                  <img src={patient.insuranceMedicaidCardUrlBack} alt="Medicaid back" className="h-16 w-auto rounded border border-slate-200 object-cover" />
+                                  <p className="mt-1 text-xs text-emerald-600">Back uploaded.</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div>

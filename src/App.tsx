@@ -13,6 +13,7 @@ const Builder = lazy(() => import('./pages/Builder'));
 const ViewForm = lazy(() => import('./pages/ViewForm'));
 const Submissions = lazy(() => import('./pages/Submissions'));
 const ConsentForm = lazy(() => import('./pages/ConsentForm'));
+const ConsentSubmissions = lazy(() => import('./pages/ConsentSubmissions'));
 const Templates = lazy(() => import('./pages/Templates'));
 const TemplateLibrary = lazy(() => import('./pages/TemplateLibrary'));
 const TemplatePreview = lazy(() => import('./pages/TemplatePreview'));
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="/workspace" element={<ProtectedRoute><Workspace /></ProtectedRoute>} />
           <Route path="/dashboard" element={<Navigate to="/workspace" replace />} />
           <Route path="/consent" element={<ProtectedRoute><ConsentForm /></ProtectedRoute>} />
+          <Route path="/consent-submissions" element={<ProtectedRoute><ConsentSubmissions /></ProtectedRoute>} />
           <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
           <Route path="/integrations" element={<ProtectedRoute><Integrations /></ProtectedRoute>} />
           <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />

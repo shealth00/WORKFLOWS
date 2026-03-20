@@ -78,5 +78,11 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.createdByUid == request.auth.uid;
       allow read: if isAuthenticated();
     }
+
+    // Consent form submissions (Sally Health)
+    match /consentSubmissions/{docId} {
+      allow create: if isAuthenticated() && request.resource.data.submittedByUid == request.auth.uid;
+      allow read: if isAuthenticated();
+    }
   }
 }
