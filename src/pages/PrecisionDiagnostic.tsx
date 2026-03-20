@@ -360,6 +360,8 @@ export default function PrecisionDiagnostic() {
                 <div className="mt-6">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Signature (typed)</label>
                   <input
+                    type="text"
+                    autoComplete="off"
                     value={signatureTyped}
                     onChange={(e) => setSignatureTyped(e.target.value)}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"

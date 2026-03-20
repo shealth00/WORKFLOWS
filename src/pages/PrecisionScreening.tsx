@@ -623,6 +623,8 @@ export default function PrecisionScreening() {
             <div className="mt-6">
               <label className="block text-sm font-medium text-slate-700 mb-1">Signature (type full legal name)</label>
               <input
+                type="text"
+                autoComplete="off"
                 value={consent.signatureTyped || ''}
                 onChange={(e) => setConsent((c) => ({ ...c, signatureTyped: e.target.value }))}
                 className="w-full p-4 bg-slate-50 border border-black/5 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all"
