@@ -58,14 +58,35 @@ const Builder: React.FC = () => {
     fetchForm();
   }, [id, user, navigate]);
 
+  const stripUndefined = (obj: Record<string, unknown>): Record<string, unknown> => {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (v === undefined) continue;
+      if (Array.isArray(v)) {
+        out[k] = v.map((x) =>
+          x !== null && typeof x === 'object' && !Array.isArray(x) && Object.getPrototypeOf(x) === Object.prototype
+            ? stripUndefined(x as Record<string, unknown>)
+            : x
+        );
+      } else if (v !== null && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) {
+        out[k] = stripUndefined(v as Record<string, unknown>);
+      } else {
+        out[k] = v;
+      }
+    }
+    return out;
+  };
+
   const handleSave = async () => {
     if (!id || !form) return;
     setSaving(true);
     try {
-      await updateDoc(doc(db, 'forms', id), {
-        ...form,
+      const { id: _id, ...formData } = form;
+      const payload = stripUndefined({
+        ...formData,
         updatedAt: serverTimestamp()
-      });
+      } as Record<string, unknown>) as Record<string, unknown>;
+      await updateDoc(doc(db, 'forms', id), payload);
     } catch (error) {
       console.error('Save failed:', error);
       alert('Failed to save form.');

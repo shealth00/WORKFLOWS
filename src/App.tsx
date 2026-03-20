@@ -3,24 +3,33 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
-import Dashboard from './pages/Dashboard';
-import Builder from './pages/Builder';
-import ViewForm from './pages/ViewForm';
-import Submissions from './pages/Submissions';
-import ConsentForm from './pages/ConsentForm';
-import Templates from './pages/Templates';
-import TemplateLibrary from './pages/TemplateLibrary';
-import TemplatePreview from './pages/TemplatePreview';
-import Workspace from './pages/Workspace';
-import Integrations from './pages/Integrations';
-import Products from './pages/Products';
-import PrecisionScreening from './pages/PrecisionScreening';
-import PrecisionDiagnostic from './pages/PrecisionDiagnostic';
-import Register from './pages/Register';
-import Login from './pages/Login';
 import { Loader2 } from 'lucide-react';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Builder = lazy(() => import('./pages/Builder'));
+const ViewForm = lazy(() => import('./pages/ViewForm'));
+const Submissions = lazy(() => import('./pages/Submissions'));
+const ConsentForm = lazy(() => import('./pages/ConsentForm'));
+const Templates = lazy(() => import('./pages/Templates'));
+const TemplateLibrary = lazy(() => import('./pages/TemplateLibrary'));
+const TemplatePreview = lazy(() => import('./pages/TemplatePreview'));
+const Workspace = lazy(() => import('./pages/Workspace'));
+const Integrations = lazy(() => import('./pages/Integrations'));
+const Products = lazy(() => import('./pages/Products'));
+const PrecisionScreening = lazy(() => import('./pages/PrecisionScreening'));
+const PrecisionDiagnostic = lazy(() => import('./pages/PrecisionDiagnostic'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Register = lazy(() => import('./pages/Register'));
+const Login = lazy(() => import('./pages/Login'));
+
+const PageFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <Loader2 className="animate-spin text-orange-600" size={40} />
+  </div>
+);
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -47,7 +56,8 @@ export default function App() {
   return (
     <AuthProvider>
       <Router>
-        <Routes>
+        <Suspense fallback={<PageFallback />}>
+          <Routes>
           <Route path="/" element={<DashboardOrConsent />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
@@ -57,6 +67,7 @@ export default function App() {
           <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
           <Route path="/integrations" element={<ProtectedRoute><Integrations /></ProtectedRoute>} />
           <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/precision-screening" element={<ProtectedRoute><PrecisionScreening /></ProtectedRoute>} />
           <Route path="/precision-diagnostic" element={<ProtectedRoute><PrecisionDiagnostic /></ProtectedRoute>} />
           <Route path="/templates/:type" element={<ProtectedRoute><TemplateLibrary /></ProtectedRoute>} />
@@ -64,7 +75,8 @@ export default function App() {
           <Route path="/builder/:id" element={<ProtectedRoute><Builder /></ProtectedRoute>} />
           <Route path="/view/:id" element={<ViewForm />} />
           <Route path="/submissions/:id" element={<ProtectedRoute><Submissions /></ProtectedRoute>} />
-        </Routes>
+          </Routes>
+        </Suspense>
       </Router>
     </AuthProvider>
   );

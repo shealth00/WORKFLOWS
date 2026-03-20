@@ -62,6 +62,9 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
                 <a href="/products" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
                   Products
                 </a>
+                <a href="/settings" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                  Settings
+                </a>
                 {onNewForm && (
                   <button 
                     onClick={onNewForm}

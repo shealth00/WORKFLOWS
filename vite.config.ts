@@ -9,6 +9,19 @@ export default defineConfig(({mode}) => {
   return {
     base: isCapacitor ? './' : '/',
     plugins: [react(), tailwindcss()],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            if (id.includes('node_modules/firebase')) return 'firebase';
+            if (id.includes('node_modules/@google/genai')) return 'gemini';
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) return 'react-vendor';
+            if (id.includes('node_modules/react-router')) return 'router';
+          },
+        },
+      },
+      chunkSizeWarningLimit: 600,
+    },
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
