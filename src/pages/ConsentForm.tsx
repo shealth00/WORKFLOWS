@@ -603,6 +603,7 @@ const ConsentForm: React.FC = () => {
                               <option value="BCBS">BCBS (Blue Cross Blue Shield)</option>
                               <option value="Humana">Humana</option>
                               <option value="United">United Healthcare</option>
+                              <option value="UnitedCare">United Care Health</option>
                             </select>
                           </div>
                           <input
