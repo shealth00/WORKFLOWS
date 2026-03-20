@@ -69,6 +69,14 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
                   <Heart size={16} className="text-orange-600" />
                   Health Data
                 </Link>
+                <a
+                  href="https://patientportal.sally.health"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors"
+                >
+                  Patient Portal
+                </a>
                 <Link to="/settings" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
                   Settings
                 </Link>
@@ -103,6 +111,15 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
                 </div>
               </>
             ) : (
+              <>
+                <a
+                  href="https://patientportal.sally.health"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors"
+                >
+                  Patient Portal
+                </a>
                 <button 
                   onClick={handleSignIn}
                   disabled={signingIn}
@@ -111,6 +128,7 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
                   {signingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   Sign In with Google
                 </button>
+              </>
               )}
           </div>
         </div>
