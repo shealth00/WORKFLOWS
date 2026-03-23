@@ -1,6 +1,14 @@
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * App.tsx — Root application with routing.
+ *
+ * Architecture:
+ * - AuthProvider wraps the app; useAuth() provides user/profile/loading
+ * - ProtectedRoute: requires user; shows loading spinner, else redirects to /
+ * - DashboardOrConsent: / redirects to /workspace when signed in, else shows public Dashboard
+ * - /view/:id is public (form fill); all other content routes are protected
  */
 
 import React, { Suspense, lazy } from 'react';
@@ -26,6 +34,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Register = lazy(() => import('./pages/Register'));
 const Login = lazy(() => import('./pages/Login'));
 const HealthDashboard = lazy(() => import('./pages/HealthDashboard'));
+const PatientPortal = lazy(() => import('./pages/PatientPortal'));
 
 const PageFallback = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
@@ -48,11 +57,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-/** After sign-in, send users to the Sally Health Consent Form (PDF-like experience). */
+/** After sign-in, send users to My Workspace (Consent form is accessible from there). */
 function DashboardOrConsent() {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (user) return <Navigate to="/consent" replace />;
+  if (user) return <Navigate to="/workspace" replace />;
   return <Dashboard />;
 }
 
@@ -76,6 +85,7 @@ export default function App() {
           <Route path="/precision-screening" element={<ProtectedRoute><PrecisionScreening /></ProtectedRoute>} />
           <Route path="/precision-diagnostic" element={<ProtectedRoute><PrecisionDiagnostic /></ProtectedRoute>} />
           <Route path="/health" element={<ProtectedRoute><HealthDashboard /></ProtectedRoute>} />
+          <Route path="/patient-portal" element={<ProtectedRoute><PatientPortal /></ProtectedRoute>} />
           <Route path="/templates/:type" element={<ProtectedRoute><TemplateLibrary /></ProtectedRoute>} />
           <Route path="/templates/:type/:templateId" element={<ProtectedRoute><TemplatePreview /></ProtectedRoute>} />
           <Route path="/builder/:id" element={<ProtectedRoute><Builder /></ProtectedRoute>} />

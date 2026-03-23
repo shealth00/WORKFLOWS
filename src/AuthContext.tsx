@@ -1,3 +1,11 @@
+/**
+ * AuthContext — Provides auth state (user, profile, loading) to the app.
+ *
+ * Architecture:
+ * - Subscribes to onAuthStateChanged; on sign-in, fetches or creates users/{uid} profile
+ * - Profile: uid, email, displayName, photoURL, createdAt
+ * - Persistence: browserLocalPersistence (configured in firebase.ts)
+ */
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, onAuthStateChanged, getRedirectResult, doc, getDoc, setDoc, serverTimestamp, db } from './firebase';
 import { User } from 'firebase/auth';

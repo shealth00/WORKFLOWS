@@ -9,7 +9,7 @@ import { Loader2 } from 'lucide-react';
 export default function Login() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  if (user) return <Navigate to="/consent" replace />;
+  if (user) return <Navigate to="/workspace" replace />;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -21,7 +21,7 @@ export default function Login() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate('/consent', { replace: true });
+      navigate('/workspace', { replace: true });
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
       if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
@@ -95,6 +95,17 @@ export default function Login() {
                 className="w-full py-3 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 focus:ring-4 focus:ring-orange-300 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign in'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('test@sallyhealth.org');
+                  setPassword('Pw#12345');
+                }}
+                className="w-full py-2 text-sm text-slate-500 hover:text-slate-700 border border-dashed border-slate-200 rounded-xl hover:bg-slate-50"
+              >
+                Use test account (test / Pw#12345)
               </button>
             </form>
 

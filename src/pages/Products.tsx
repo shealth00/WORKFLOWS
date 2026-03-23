@@ -1,22 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { TEMPLATES } from '../data/templates';
 import { ChevronRight } from 'lucide-react';
 
+/** Features with routes; null href means "coming soon" */
 const FEATURES = [
-  { name: 'Teams', href: '#' },
-  { name: 'Prefill forms', href: '#' },
-  { name: 'Secure forms', href: '#' },
-  { name: 'Form notifications', href: '#' },
-  { name: 'Online payments', href: '#' },
-  { name: 'Assign forms', href: '#' },
-  { name: 'HIPAA forms', href: '#' },
-  { name: 'Widgets', href: '#' },
+  { name: 'Teams', href: '/settings' },
+  { name: 'Prefill forms', href: '/workspace' },
+  { name: 'Secure forms', href: '/settings' },
+  { name: 'Form notifications', href: null },
+  { name: 'Online payments', href: null },
+  { name: 'Assign forms', href: null },
+  { name: 'HIPAA forms', href: '/consent' },
+  { name: 'Widgets', href: null },
 ];
 
 export default function Products() {
   const navigate = useNavigate();
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   const productTiles = TEMPLATES.map((t) => ({
     ...t,
@@ -86,25 +88,46 @@ export default function Products() {
             <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Features</h2>
             <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-1">
               {FEATURES.map((f) => (
-                <a
+                <button
                   key={f.name}
-                  href={f.href}
-                  className="flex items-center gap-2 py-2.5 px-3 rounded-lg text-slate-700 hover:bg-slate-50 hover:text-orange-600 transition-colors text-sm font-medium"
+                  type="button"
+                  onClick={() =>
+                    f.href ? navigate(f.href) : setShowComingSoon(true)
+                  }
+                  className="flex items-center gap-2 py-2.5 px-3 rounded-lg text-slate-700 hover:bg-slate-50 hover:text-orange-600 transition-colors text-sm font-medium w-full text-left"
                 >
                   {f.name}
-                </a>
+                </button>
               ))}
-              <a
-                href="#"
-                className="flex items-center gap-2 py-2.5 px-3 rounded-lg text-orange-600 hover:bg-orange-50 transition-colors text-sm font-medium"
+              <button
+                type="button"
+                onClick={() => navigate('/templates')}
+                className="flex items-center gap-2 py-2.5 px-3 rounded-lg text-orange-600 hover:bg-orange-50 transition-colors text-sm font-medium w-full text-left"
               >
                 See more features
                 <ChevronRight className="w-4 h-4" />
-              </a>
+              </button>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Coming soon toast */}
+      {showComingSoon && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-slate-800 text-white rounded-xl shadow-lg text-sm font-medium flex items-center gap-2"
+          role="alert"
+        >
+          Coming soon. Contact support@sallyhealth.org to request early access.
+          <button
+            type="button"
+            onClick={() => setShowComingSoon(false)}
+            className="ml-3 text-orange-400 hover:text-orange-300 underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
     </div>
   );
 }

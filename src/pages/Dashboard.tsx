@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { db, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc } from '../firebase';
 import { useAuth } from '../AuthContext';
 import { FormDefinition } from '../types';
 import Navbar from '../components/Navbar';
 import FormCard from '../components/FormCard';
-import { Plus, Search, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Search, Sparkles, Loader2, FileText } from 'lucide-react';
 import { generateFormFromPrompt } from '../geminiService';
+import ChatBot from '../components/ChatBot';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -134,6 +136,22 @@ const Dashboard: React.FC = () => {
       <Navbar onNewForm={handleCreateNew} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <Link
+          to="/consent"
+          className="block mb-8 p-6 bg-white rounded-2xl shadow-lg border border-slate-200 hover:border-orange-200 hover:shadow-xl transition-all group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center group-hover:bg-orange-200 transition-colors">
+              <FileText className="w-8 h-8 text-orange-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-slate-800 group-hover:text-orange-600 transition-colors">Sally Health Consent Form</h2>
+              <p className="text-slate-500 text-sm mt-0.5">Chronic care management &amp; ongoing care services consent</p>
+            </div>
+            <span className="text-orange-600 font-medium group-hover:translate-x-1 transition-transform">Open →</span>
+          </div>
+        </Link>
+
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">My Workspace</h1>
@@ -252,5 +270,3 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
-import { FileText } from 'lucide-react';
-import ChatBot from '../components/ChatBot';

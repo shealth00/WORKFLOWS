@@ -13,7 +13,7 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
     setSigningIn(true);
     try {
       await signInWithPopup(auth, googleProvider);
-      navigate('/consent', { replace: true });
+      navigate('/workspace', { replace: true });
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
       if (code === 'auth/popup-blocked') {
@@ -72,14 +72,12 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
                   <Heart size={16} className="text-orange-600" />
                   Health Data
                 </Link>
-                <a
-                  href="https://patientportal.sally.health"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors"
+                <Link
+                  to="/patient-portal"
+                  className="flex items-center gap-2 text-orange-600 hover:text-orange-700 px-3 py-2 rounded-full text-sm font-medium transition-colors font-medium"
                 >
                   Patient Portal
-                </a>
+                </Link>
                 <Link to="/settings" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
                   Settings
                 </Link>
@@ -115,14 +113,12 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
               </>
             ) : (
               <>
-                <a
-                  href="https://patientportal.sally.health"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors"
+                <Link
+                  to="/login"
+                  className="flex items-center gap-2 text-orange-600 hover:text-orange-700 px-3 py-2 rounded-full text-sm font-medium transition-colors"
                 >
-                  Patient Portal
-                </a>
+                  Patient Portal (sign in required)
+                </Link>
                 <button 
                   onClick={handleSignIn}
                   disabled={signingIn}

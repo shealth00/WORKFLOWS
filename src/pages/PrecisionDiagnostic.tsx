@@ -1,17 +1,46 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../AuthContext';
-import { db, collection, addDoc, serverTimestamp } from '../firebase';
+import { db, collection, addDoc, serverTimestamp, storage, ref, uploadBytes, getDownloadURL } from '../firebase';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import { evaluatePrecisionScreening } from '../logic/precisionScreening';
 import type { PrecisionScreeningResponses } from '../types';
 
 type Patient = {
-  name: string;
+  fullName: string;
+  email: string;
+  genderAtBirth: string;
   dob: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  insuranceTraditionalCardUrlFront: string;
+  insuranceTraditionalCardUrlBack: string;
+  insuranceAdvantageCardUrlFront: string;
+  insuranceAdvantageCardUrlBack: string;
+  idCardUrlFront: string;
+  idCardUrlBack: string;
 };
 
-const DEFAULT_PATIENT: Patient = { name: '', dob: '' };
+const DEFAULT_PATIENT: Patient = {
+  fullName: '',
+  email: '',
+  genderAtBirth: '',
+  dob: '',
+  phone: '',
+  address: '',
+  city: '',
+  state: '',
+  zip: '',
+  insuranceTraditionalCardUrlFront: '',
+  insuranceTraditionalCardUrlBack: '',
+  insuranceAdvantageCardUrlFront: '',
+  insuranceAdvantageCardUrlBack: '',
+  idCardUrlFront: '',
+  idCardUrlBack: '',
+};
 
 const DEFAULT_RESPONSES: PrecisionScreeningResponses & { adherenceConcern: boolean } = {
   medFailure: false,
@@ -127,8 +156,36 @@ export default function PrecisionDiagnostic() {
     setResponses((r) => ({ ...r, [key]: !r[key] }));
   };
 
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+
+  const handleFileUpload = async (file: File, kind: string) => {
+    if (!user || !file) return;
+    setUploading((u) => ({ ...u, [kind]: true }));
+    try {
+      const path = `precision-diagnostic/${user.uid}/${kind}-${Date.now()}-${file.name}`;
+      const storageRef = ref(storage, path);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      const fieldMap: Record<string, keyof Patient> = {
+        'insurance-traditional-front': 'insuranceTraditionalCardUrlFront',
+        'insurance-traditional-back': 'insuranceTraditionalCardUrlBack',
+        'insurance-advantage-front': 'insuranceAdvantageCardUrlFront',
+        'insurance-advantage-back': 'insuranceAdvantageCardUrlBack',
+        'id-front': 'idCardUrlFront',
+        'id-back': 'idCardUrlBack',
+      };
+      const key = fieldMap[kind];
+      if (key) setPatient((p) => ({ ...p, [key]: url }));
+    } catch (err) {
+      console.error('Upload failed', err);
+      alert('Failed to upload. Please try again.');
+    } finally {
+      setUploading((u) => ({ ...u, [kind]: false }));
+    }
+  };
+
   const canSubmit =
-    patient.name.trim() &&
+    patient.fullName.trim() &&
     patient.dob.trim() &&
     consented &&
     signatureTyped.trim();
@@ -234,19 +291,41 @@ export default function PrecisionDiagnostic() {
 
             <form onSubmit={handleSubmit} className="mt-10 space-y-8">
               <section>
-                <h2 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2">Patient</h2>
+                <h2 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2">Patient information</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Patient name</label>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Full name</label>
                     <input
-                      value={patient.name}
-                      onChange={(e) => setPatient((p) => ({ ...p, name: e.target.value }))}
+                      value={patient.fullName}
+                      onChange={(e) => setPatient((p) => ({ ...p, fullName: e.target.value }))}
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">DOB</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={patient.email}
+                      onChange={(e) => setPatient((p) => ({ ...p, email: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Gender at birth</label>
+                    <select
+                      value={patient.genderAtBirth}
+                      onChange={(e) => setPatient((p) => ({ ...p, genderAtBirth: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"
+                    >
+                      <option value="">Select</option>
+                      <option value="Female">Female</option>
+                      <option value="Male">Male</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Date of birth</label>
                     <input
                       type="date"
                       value={patient.dob}
@@ -254,6 +333,54 @@ export default function PrecisionDiagnostic() {
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"
                       required
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={patient.phone}
+                      onChange={(e) => setPatient((p) => ({ ...p, phone: e.target.value }))}
+                      placeholder="+1 (555) 000-0000"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Residential address</label>
+                    <input
+                      value={patient.address}
+                      onChange={(e) => setPatient((p) => ({ ...p, address: e.target.value }))}
+                      placeholder="Street address"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 mb-2"
+                    />
+                    <div className="grid gap-2 grid-cols-3">
+                      <input value={patient.city} onChange={(e) => setPatient((p) => ({ ...p, city: e.target.value }))} placeholder="City" className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500" />
+                      <input value={patient.state} onChange={(e) => setPatient((p) => ({ ...p, state: e.target.value }))} placeholder="State" className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500" />
+                      <input value={patient.zip} onChange={(e) => setPatient((p) => ({ ...p, zip: e.target.value }))} placeholder="ZIP" className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <h2 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2">Insurance &amp; documents</h2>
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 mb-2">Medicare (traditional)</p>
+                    <label className="block text-xs text-slate-500 mb-1">Insurance card – front</label>
+                    <input type="file" accept="image/*" disabled={!!uploading['insurance-traditional-front']} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'insurance-traditional-front'); }} className="block w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50" />
+                    {patient.insuranceTraditionalCardUrlFront && <p className="mt-1 text-xs text-emerald-600">Front uploaded.</p>}
+                    <label className="block text-xs text-slate-500 mb-1 mt-2">Insurance card – back</label>
+                    <input type="file" accept="image/*" disabled={!!uploading['insurance-traditional-back']} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'insurance-traditional-back'); }} className="block w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50" />
+                    {patient.insuranceTraditionalCardUrlBack && <p className="mt-1 text-xs text-emerald-600">Back uploaded.</p>}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 mb-2">Medicare (Advantage)</p>
+                    <label className="block text-xs text-slate-500 mb-1">State ID / driver license – front</label>
+                    <input type="file" accept="image/*" disabled={!!uploading['id-front']} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'id-front'); }} className="block w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50" />
+                    {patient.idCardUrlFront && <p className="mt-1 text-xs text-emerald-600">Front uploaded.</p>}
+                    <label className="block text-xs text-slate-500 mb-1 mt-2">State ID / driver license – back</label>
+                    <input type="file" accept="image/*" disabled={!!uploading['id-back']} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'id-back'); }} className="block w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50" />
+                    {patient.idCardUrlBack && <p className="mt-1 text-xs text-emerald-600">Back uploaded.</p>}
                   </div>
                 </div>
               </section>
@@ -406,7 +533,7 @@ export default function PrecisionDiagnostic() {
                 </button>
                 {!canSubmit ? (
                   <p className="mt-3 text-xs text-slate-500">
-                    Patient name, DOB, consent, and typed signature are required.
+                    Full name, date of birth, consent, and typed signature are required.
                   </p>
                 ) : null}
               </div>

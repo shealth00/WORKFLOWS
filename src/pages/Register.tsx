@@ -9,7 +9,7 @@ import { Loader2 } from 'lucide-react';
 export default function Register() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  if (user) return <Navigate to="/consent" replace />;
+  if (user) return <Navigate to="/workspace" replace />;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -43,7 +43,7 @@ export default function Register() {
         photoURL: '',
         createdAt: serverTimestamp(),
       });
-      navigate('/consent', { replace: true });
+      navigate('/workspace', { replace: true });
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
       if (code === 'auth/email-already-in-use') {

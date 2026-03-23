@@ -17,6 +17,7 @@ jobs:
 
       - run: npm ci
       - run: npm run build
+      - run: npm run test
 
       - name: Deploy to Firebase (Hosting + Firestore rules)
         run: npx firebase-tools deploy --only hosting,firestore:rules --non-interactive --project gen-lang-client-0777929601

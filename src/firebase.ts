@@ -1,3 +1,11 @@
+/**
+ * Firebase initialization and exports.
+ *
+ * Exports: auth, db, storage, googleProvider, and Firestore/Storage helpers.
+ * Collections: users, forms, forms/{id}/submissions, consentSubmissions,
+ * precisionScreenings, precisionDiagnosticScreenings.
+ * Storage: consent-uploads/{uid}/..., precision-diagnostic/{uid}/...
+ */
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, getDoc, getDocs, setDoc, collection, addDoc, updateDoc, deleteDoc, query, where, limit, onSnapshot, orderBy, serverTimestamp, getDocFromServer, getCountFromServer } from 'firebase/firestore';

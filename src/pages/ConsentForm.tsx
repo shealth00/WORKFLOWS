@@ -16,7 +16,7 @@ const ConsentForm: React.FC = () => {
 
   const [collectorName, setCollectorName] = useState('');
   const [patient, setPatient] = useState({
-    fullName: user?.displayName || '',
+    fullName: '',
     email: user?.email || '',
     genderAtBirth: '',
     dateOfBirth: '',
@@ -300,11 +300,14 @@ const ConsentForm: React.FC = () => {
           {/* Header bar */}
           <div className="h-2 bg-orange-600" />
           <div className="px-6 sm:px-10 py-8">
-            <p className="text-sm text-slate-500 mb-1">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </p>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Sally Health Consent Form</h1>
-            <p className="mt-3 text-slate-600">
+            <div className="flex items-center gap-3 mb-4">
+              <img src="/sally-health-badge.png" alt="Sally Health" className="w-14 h-14 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Sally Health Consent Form</h1>
+                <p className="text-sm text-slate-500 mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              </div>
+            </div>
+            <p className="text-slate-600 -mt-2">
               This form is to obtain your consent for chronic care management and ongoing care services at Sally Health.
             </p>
 
@@ -467,8 +470,8 @@ const ConsentForm: React.FC = () => {
                     </div>
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Insurance</label>
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-4">Insurance</label>
+                    <div className="grid gap-4 sm:grid-cols-3">
                       <div>
                         <label className="flex items-center gap-2 mb-2">
                           <input
@@ -577,20 +580,17 @@ const ConsentForm: React.FC = () => {
                           </div>
                         )}
                       </div>
-                    </div>
-                    {/* Medicaid (optional) */}
-                    <div className="mt-4 pt-4 border-t border-slate-200">
-                      <label className="flex items-center gap-2 mb-2">
-                        <input
-                          type="checkbox"
-                          checked={patient.insuranceMedicaid}
-                          onChange={(e) => setPatient((p) => ({ ...p, insuranceMedicaid: e.target.checked }))}
-                          className="w-4 h-4 text-orange-600 rounded"
-                        />
-                        <span className="text-sm">Medicaid (optional)</span>
-                      </label>
-                      {patient.insuranceMedicaid && (
-                        <div className="pl-6 space-y-2">
+                      <div>
+                        <label className="flex items-center gap-2 mb-2">
+                          <input
+                            type="checkbox"
+                            checked={patient.insuranceMedicaid}
+                            onChange={(e) => setPatient((p) => ({ ...p, insuranceMedicaid: e.target.checked }))}
+                            className="w-4 h-4 text-orange-600 rounded"
+                          />
+                          <span className="text-sm">Medicaid (optional)</span>
+                        </label>
+                        <div className="space-y-2">
                           <div>
                             <label className="block text-xs font-medium text-slate-500 mb-1">Medicaid provider</label>
                             <select
@@ -656,7 +656,7 @@ const ConsentForm: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                   <div>

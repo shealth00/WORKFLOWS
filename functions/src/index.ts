@@ -4,6 +4,9 @@
  * syncConsentToGoogleDrive: When a consent form is submitted, creates a JSON
  * copy and uploads it to a configured Google Drive folder.
  *
+ * syncSubmissionToWebhook: When a form submission is created, POSTs the payload
+ * to the form owner's configured webhook URL (users/{uid}/integrations/webhook).
+ *
  * Setup:
  * 1. Enable Google Drive API in Google Cloud Console
  * 2. Share the target Drive folder with the Cloud Functions service account (Editor)
@@ -95,3 +98,53 @@ export const syncConsentToGoogleDrive = onDocumentCreated(
       throw err;
     }
   });
+
+/**
+ * POSTs form submission data to the form owner's webhook URL when configured.
+ * Triggered when a document is created in forms/{formId}/submissions.
+ */
+export const syncSubmissionToWebhook = onDocumentCreated(
+  "forms/{formId}/submissions/{submissionId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    const { formId, submissionId } = event.params;
+    const submissionData = snap.data();
+
+    const formSnap = await admin.firestore().doc(`forms/${formId}`).get();
+    if (!formSnap.exists) return null;
+    const ownerId = formSnap.data()?.ownerId;
+    if (!ownerId) return null;
+
+    const webhookSnap = await admin.firestore().doc(`users/${ownerId}/integrations/webhook`).get();
+    const webhookUrl = webhookSnap.data()?.url;
+    if (!webhookUrl || typeof webhookUrl !== "string") return null;
+
+    try {
+      const payload = {
+        formId,
+        submissionId,
+        formTitle: formSnap.data()?.title,
+        data: submissionData.data,
+        results: submissionData.results,
+        submittedAt: submissionData.submittedAt,
+      };
+
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        logger.warn(`Webhook POST to ${webhookUrl} returned ${response.status}`);
+      } else {
+        logger.info(`Webhook delivered for form ${formId}, submission ${submissionId}`);
+      }
+      return null;
+    } catch (err) {
+      logger.error("Webhook delivery failed", err);
+      return null;
+    }
+  }
+);

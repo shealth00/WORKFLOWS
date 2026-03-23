@@ -3,6 +3,7 @@
   "description": "Cloud Functions for Sally Health consent form – Google Drive sync",
   "scripts": {
     "build": "tsc -p .",
+    "create-test-user": "node scripts/create-test-user.js",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
