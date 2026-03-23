@@ -5,6 +5,9 @@
  * syncConsentToGoogleDrive: When a consent form is submitted, creates a JSON
  * copy and uploads it to a configured Google Drive folder.
  *
+ * syncSubmissionToWebhook: When a form submission is created, POSTs the payload
+ * to the form owner's configured webhook URL (users/{uid}/integrations/webhook).
+ *
  * Setup:
  * 1. Enable Google Drive API in Google Cloud Console
  * 2. Share the target Drive folder with the Cloud Functions service account (Editor)
@@ -12,7 +15,7 @@
  *    Or add DRIVE_FOLDER_ID to functions/.env.gen-lang-client-0777929601
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncConsentToGoogleDrive = void 0;
+exports.syncSubmissionToWebhook = exports.syncConsentToGoogleDrive = void 0;
 const firestore_1 = require("firebase-functions/v2/firestore");
 const firebase_functions_1 = require("firebase-functions");
 const params_1 = require("firebase-functions/params");
@@ -80,6 +83,54 @@ exports.syncConsentToGoogleDrive = (0, firestore_1.onDocumentCreated)("consentSu
             googleDriveError: err instanceof Error ? err.message : "Upload failed",
         });
         throw err;
+    }
+});
+/**
+ * POSTs form submission data to the form owner's webhook URL when configured.
+ * Triggered when a document is created in forms/{formId}/submissions.
+ */
+exports.syncSubmissionToWebhook = (0, firestore_1.onDocumentCreated)("forms/{formId}/submissions/{submissionId}", async (event) => {
+    var _a, _b, _c;
+    const snap = event.data;
+    if (!snap)
+        return null;
+    const { formId, submissionId } = event.params;
+    const submissionData = snap.data();
+    const formSnap = await admin.firestore().doc(`forms/${formId}`).get();
+    if (!formSnap.exists)
+        return null;
+    const ownerId = (_a = formSnap.data()) === null || _a === void 0 ? void 0 : _a.ownerId;
+    if (!ownerId)
+        return null;
+    const webhookSnap = await admin.firestore().doc(`users/${ownerId}/integrations/webhook`).get();
+    const webhookUrl = (_b = webhookSnap.data()) === null || _b === void 0 ? void 0 : _b.url;
+    if (!webhookUrl || typeof webhookUrl !== "string")
+        return null;
+    try {
+        const payload = {
+            formId,
+            submissionId,
+            formTitle: (_c = formSnap.data()) === null || _c === void 0 ? void 0 : _c.title,
+            data: submissionData.data,
+            results: submissionData.results,
+            submittedAt: submissionData.submittedAt,
+        };
+        const response = await fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+            firebase_functions_1.logger.warn(`Webhook POST to ${webhookUrl} returned ${response.status}`);
+        }
+        else {
+            firebase_functions_1.logger.info(`Webhook delivered for form ${formId}, submission ${submissionId}`);
+        }
+        return null;
+    }
+    catch (err) {
+        firebase_functions_1.logger.error("Webhook delivery failed", err);
+        return null;
     }
 });
 //# sourceMappingURL=index.js.map
