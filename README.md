@@ -18,3 +18,8 @@ View your app in AI Studio: https://ai.studio/apps/720965ad-ee94-400c-9baa-95729
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Configuration
+
+- **[docs/API-REQUIREMENTS.md](docs/API-REQUIREMENTS.md)** — Firebase, Gemini, Drive, Functions, webhooks, Android
+- **[docs/FIREBASE-AUTH-SETUP.md](docs/FIREBASE-AUTH-SETUP.md)** — Google sign-in and authorized domains

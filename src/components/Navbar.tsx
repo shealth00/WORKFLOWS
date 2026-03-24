@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
-import { signInWithPopup, googleProvider, signOut, auth } from '../firebase';
+import { signInWithPopup, signInWithRedirect, googleProvider, signOut, auth } from '../firebase';
 import { LogOut, Plus, User as UserIcon, Loader2, Heart } from 'lucide-react';
 
 const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
@@ -17,7 +17,8 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
       if (code === 'auth/popup-blocked') {
-        alert('Sign-in popup was blocked. Please allow popups for this site and try again.');
+        await signInWithRedirect(auth, googleProvider);
+        return;
       } else if (code === 'auth/popup-closed-by-user') {
         // User closed the popup; no need to alert
           } else {
