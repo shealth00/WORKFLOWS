@@ -2,13 +2,15 @@
  * Patient Portal – patient-facing view showing only this patient's data.
  * Unique to the logged-in user. No admin or staff views.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { db, collection, query, where, orderBy, onSnapshot } from '../firebase';
 import { useAuth } from '../AuthContext';
 import Navbar from '../components/Navbar';
-import { Loader2, FileText, ClipboardCheck, ChevronRight } from 'lucide-react';
+import { Loader2, FileText, ClipboardCheck, ChevronRight, UserCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import type { PatientProfile, PatientProfilesPayload } from '../types/patientDirectory';
+import { findMatchingDirectoryProfiles } from '../utils/patientProfileMatch';
 
 interface ConsentSubmission {
   id: string;
@@ -29,6 +31,8 @@ const PatientPortal: React.FC = () => {
   const [precisionScreenings, setPrecisionScreenings] = useState<PrecisionRecord[]>([]);
   const [precisionDiagnostics, setPrecisionDiagnostics] = useState<PrecisionRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [directoryProfiles, setDirectoryProfiles] = useState<PatientProfile[]>([]);
+  const [directoryMeta, setDirectoryMeta] = useState<{ generatedAt?: string } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -71,6 +75,42 @@ const PatientPortal: React.FC = () => {
     setLoading(false);
     return () => unsubs.forEach((u) => u());
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const load = async (path: string) => {
+        const res = await fetch(path, { cache: 'no-store' });
+        if (!res.ok) return null;
+        return (await res.json()) as PatientProfilesPayload;
+      };
+      const primary = await load('/patient-directory/profiles.json');
+      const data =
+        primary?.profiles?.length ? primary : (await load('/patient-directory/profiles.demo.json'));
+      if (!cancelled && data?.profiles) {
+        setDirectoryProfiles(data.profiles);
+        setDirectoryMeta({ generatedAt: data.generatedAt });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const matchedDirectoryProfiles = useMemo(() => {
+    if (!user || directoryProfiles.length === 0) return [];
+    const consentFullNames = consentSubmissions
+      .map((s) => s.patient?.fullName?.trim())
+      .filter((n): n is string => Boolean(n));
+    const consentEmails = consentSubmissions
+      .map((s) => s.patient?.email?.trim())
+      .filter((e): e is string => Boolean(e));
+    return findMatchingDirectoryProfiles(user, directoryProfiles, {
+      consentFullNames,
+      consentEmails,
+    });
+  }, [user, directoryProfiles, consentSubmissions]);
 
   if (!user) {
     return (
@@ -135,6 +175,69 @@ const PatientPortal: React.FC = () => {
                 </div>
               </Link>
             </div>
+
+            {/* Directory profiles matched to this account */}
+            {directoryProfiles.length > 0 && (
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100">
+                  <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <UserCircle className="w-5 h-5 text-orange-600" />
+                    Your clinic profile
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    Information on file when it matches your account or your submitted consents
+                    {directoryMeta?.generatedAt &&
+                      ` · Directory updated ${new Date(directoryMeta.generatedAt).toLocaleDateString()}`}
+                  </p>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {matchedDirectoryProfiles.length === 0 ? (
+                    <div className="px-6 py-8 text-center text-slate-500 text-sm">
+                      <p>No matching directory profile yet.</p>
+                      <p className="mt-2 text-slate-400">
+                        Matches use your sign-in email, display name, phone (if on your account), or the name/email on
+                        consent forms you submitted. Add an Email column to the patient spreadsheet
+                        for clearer matching.
+                      </p>
+                    </div>
+                  ) : (
+                    matchedDirectoryProfiles.map((p) => (
+                      <div key={p.id} className="px-6 py-5 space-y-3">
+                        <p className="font-semibold text-slate-900">{p.name}</p>
+                        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                          {p.email && (
+                            <div>
+                              <dt className="text-slate-500">Email</dt>
+                              <dd className="text-slate-800">{p.email}</dd>
+                            </div>
+                          )}
+                          <div>
+                            <dt className="text-slate-500">DOB</dt>
+                            <dd className="text-slate-800">{p.dob || '—'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">MRN / insurance</dt>
+                            <dd className="text-slate-800">{p.mrn || '—'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Phone</dt>
+                            <dd className="text-slate-800">{p.phone || '—'}</dd>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <dt className="text-slate-500">Address</dt>
+                            <dd className="text-slate-800">{p.address || '—'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Recent visit</dt>
+                            <dd className="text-slate-800">{p.recentVisit || '—'}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* My consent forms */}
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">

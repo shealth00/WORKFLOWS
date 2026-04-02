@@ -140,6 +140,12 @@ export default function PatientDirectory() {
                   <p className="text-sm text-slate-500 mt-1">ID: {profile.id}</p>
                 </div>
                 <dl className="px-6 py-5 space-y-4 text-sm">
+                  {profile.email && (
+                    <div>
+                      <dt className="text-slate-500 font-medium">Email</dt>
+                      <dd className="text-slate-900">{profile.email}</dd>
+                    </div>
+                  )}
                   <div>
                     <dt className="text-slate-500 font-medium">DOB</dt>
                     <dd className="text-slate-900">{profile.dob || '—'}</dd>

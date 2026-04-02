@@ -6,6 +6,8 @@ export interface PatientProfile {
   phone: string;
   address: string;
   recentVisit: string;
+  /** Optional; used for Patient Portal matching when present in spreadsheet */
+  email?: string;
 }
 
 export interface PatientProfilesPayload {

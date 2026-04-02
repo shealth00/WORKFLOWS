@@ -7,6 +7,7 @@
     {
       "id": "demo-patient-one-1",
       "name": "Demo Patient One",
+      "email": "demo.patient.one@example.com",
       "dob": "1960-05-15",
       "mrn": "DEMO-001",
       "phone": "5550100",

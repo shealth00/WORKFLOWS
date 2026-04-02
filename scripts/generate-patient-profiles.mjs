@@ -66,7 +66,9 @@ for (let i = 0; i < rows.length; i++) {
   if (!name) continue;
   const base = slugify(name);
   const id = `${base}-${i + 1}`;
-  profiles.push({
+  const emailRaw =
+    row['Email'] ?? row['email'] ?? row['Patient Email'] ?? row['E-mail'] ?? '';
+  const entry = {
     id,
     name,
     dob: formatCell(row['DOB']),
@@ -74,7 +76,9 @@ for (let i = 0; i < rows.length; i++) {
     phone: formatCell(row['Phone'] ?? ''),
     address: formatCell(row['Address'] ?? ''),
     recentVisit: formatCell(row['Recent Visit / Date'] ?? row['Recent Visit'] ?? ''),
-  });
+  };
+  const email = formatCell(emailRaw);
+  profiles.push(email ? { ...entry, email } : entry);
 }
 
 const payload = {

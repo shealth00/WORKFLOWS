@@ -26,6 +26,17 @@ Staff-only route: **`/patient-directory`**. Lists profiles imported from spreads
 
 4. If **`profiles.json`** is missing, the app falls back to **`profiles.demo.json`** (synthetic demo data only).
 
+## Patient Portal
+
+**Patient Portal** (`/patient-portal`) loads the same JSON but only **shows rows that match** the signed-in user:
+
+- Profile **email** equals Firebase **user email** (add an **Email** column to the spreadsheet when possible).
+- **Display name** equals **Patient Name** (case/spacing normalized).
+- **Phone** on the profile equals Firebase account phone (uncommon for email/password users).
+- **Name or email** on a **consent form** the user previously submitted matches a directory row.
+
+No link to the full staff directory is shown to patients—only their matched card(s).
+
 ## Privacy / compliance
 
 - **`patient upload/`** and **`public/patient-directory/profiles.json`** are **gitignored** so PHI is not committed by default.  
