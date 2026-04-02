@@ -35,6 +35,7 @@ const Register = lazy(() => import('./pages/Register'));
 const Login = lazy(() => import('./pages/Login'));
 const HealthDashboard = lazy(() => import('./pages/HealthDashboard'));
 const PatientPortal = lazy(() => import('./pages/PatientPortal'));
+const PatientDirectory = lazy(() => import('./pages/PatientDirectory'));
 
 const PageFallback = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
@@ -86,6 +87,8 @@ export default function App() {
           <Route path="/precision-diagnostic" element={<ProtectedRoute><PrecisionDiagnostic /></ProtectedRoute>} />
           <Route path="/health" element={<ProtectedRoute><HealthDashboard /></ProtectedRoute>} />
           <Route path="/patient-portal" element={<ProtectedRoute><PatientPortal /></ProtectedRoute>} />
+          <Route path="/patient-directory" element={<ProtectedRoute><PatientDirectory /></ProtectedRoute>} />
+          <Route path="/patient-directory/:profileId" element={<ProtectedRoute><PatientDirectory /></ProtectedRoute>} />
           <Route path="/templates/:type" element={<ProtectedRoute><TemplateLibrary /></ProtectedRoute>} />
           <Route path="/templates/:type/:templateId" element={<ProtectedRoute><TemplatePreview /></ProtectedRoute>} />
           <Route path="/builder/:id" element={<ProtectedRoute><Builder /></ProtectedRoute>} />

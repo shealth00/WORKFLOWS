@@ -60,6 +60,9 @@ const Navbar: React.FC<{ onNewForm?: () => void }> = ({ onNewForm }) => {
                 <Link to="/consent-submissions" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
                   Consent Submissions
                 </Link>
+                <Link to="/patient-directory" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
+                  Patient Directory
+                </Link>
                 <Link to="/templates" className="flex items-center gap-2 text-slate-700 hover:text-orange-600 px-3 py-2 rounded-full text-sm font-medium transition-colors">
                   Templates
                 </Link>
