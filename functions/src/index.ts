@@ -1,34 +1,122 @@
 /**
  * Firebase Cloud Functions for Sally Health
  *
- * syncConsentToGoogleDrive: When a consent form is submitted, creates a JSON
- * copy and uploads it to a configured Google Drive folder.
+ * Google Drive: Completed forms (consent + precision flows) are saved as JSON under
+ * a subfolder named "completed forms" inside the folder configured by DRIVE_FOLDER_ID
+ * (e.g. your "Patient Directory" Drive folder).
  *
- * syncSubmissionToWebhook: When a form submission is created, POSTs the payload
- * to the form owner's configured webhook URL (users/{uid}/integrations/webhook).
+ * syncSubmissionToWebhook: POSTs form submission payloads to the form owner's webhook.
  *
  * Setup:
  * 1. Enable Google Drive API in Google Cloud Console
  * 2. Share the target Drive folder with the Cloud Functions service account (Editor)
  * 3. Deploy: firebase deploy --only functions (you'll be prompted for DRIVE_FOLDER_ID)
- *    Or add DRIVE_FOLDER_ID to functions/.env.gen-lang-client-0777929601
+ *    Or add DRIVE_FOLDER_ID to functions/.env.PROJECT_ID
  */
 
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import { defineString } from "firebase-functions/params";
 import * as admin from "firebase-admin";
+import type { DocumentReference } from "firebase-admin/firestore";
 import { google } from "googleapis";
+import type { drive_v3 } from "googleapis";
 
 admin.initializeApp();
 
+const COMPLETED_FORMS_FOLDER_NAME = "completed forms";
+
 const driveFolderId = defineString("DRIVE_FOLDER_ID", {
-  description: "Google Drive folder ID where consent form JSON files are uploaded",
+  description:
+    "Google Drive folder ID for patient directory root; JSON files go in a 'completed forms' subfolder",
 });
 
+function escapeDriveQueryString(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+async function findChildFolderId(
+  drive: drive_v3.Drive,
+  parentId: string,
+  folderName: string
+): Promise<string | null> {
+  const name = escapeDriveQueryString(folderName);
+  const q =
+    `mimeType='application/vnd.google-apps.folder' and ` +
+    `'${parentId}' in parents and name='${name}' and trashed=false`;
+  const res = await drive.files.list({
+    q,
+    fields: "files(id, name)",
+    pageSize: 5,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+  const id = res.data.files?.[0]?.id;
+  return id ?? null;
+}
+
+async function getOrCreateCompletedFormsFolder(
+  drive: drive_v3.Drive,
+  rootFolderId: string
+): Promise<string> {
+  const existing = await findChildFolderId(drive, rootFolderId, COMPLETED_FORMS_FOLDER_NAME);
+  if (existing) return existing;
+  const created = await drive.files.create({
+    requestBody: {
+      name: COMPLETED_FORMS_FOLDER_NAME,
+      mimeType: "application/vnd.google-apps.folder",
+      parents: [rootFolderId],
+    },
+    fields: "id",
+    supportsAllDrives: true,
+  });
+  const id = created.data.id;
+  if (!id) throw new Error("Drive API did not return folder id for completed forms");
+  return id;
+}
+
+function consentBlockForDrive(consent: Record<string, unknown> | undefined): unknown {
+  if (!consent || typeof consent !== "object") return consent;
+  const { signatureImageDataUrl: _img, ...rest } = consent;
+  return rest;
+}
+
+function createDriveClient() {
+  const auth = new google.auth.GoogleAuth({
+    scopes: ["https://www.googleapis.com/auth/drive.file"],
+  });
+  return google.drive({ version: "v3", auth });
+}
+
+async function uploadJsonToCompletedForms(params: {
+  drive: drive_v3.Drive;
+  rootFolderId: string;
+  fileName: string;
+  jsonBody: unknown;
+  docRef: DocumentReference;
+}): Promise<string | null> {
+  const { drive, rootFolderId, fileName, jsonBody, docRef } = params;
+  const parentId = await getOrCreateCompletedFormsFolder(drive, rootFolderId);
+  const fileContent = JSON.stringify(jsonBody, null, 2);
+  const file = await drive.files.create({
+    requestBody: {
+      name: fileName,
+      parents: [parentId],
+    },
+    media: {
+      mimeType: "application/json",
+      body: fileContent,
+    },
+    supportsAllDrives: true,
+  });
+  const fid = file.data.id;
+  logger.info(`Uploaded ${fileName} to Drive completed forms: ${fid}`);
+  await docRef.update({ googleDriveFileId: fid });
+  return fid ?? null;
+}
+
 /**
- * Uploads consent form data to Google Drive as a JSON file.
- * Triggered when a document is created in consentSubmissions.
+ * Uploads consent form data to Google Drive as JSON under …/completed forms/
  */
 export const syncConsentToGoogleDrive = onDocumentCreated(
   "consentSubmissions/{docId}",
@@ -44,8 +132,8 @@ export const syncConsentToGoogleDrive = onDocumentCreated(
       return null;
     }
 
-    const folderId = driveFolderId.value();
-    if (!folderId) {
+    const rootId = driveFolderId.value();
+    if (!rootId) {
       logger.warn(
         "DRIVE_FOLDER_ID not configured. Run firebase deploy --only functions and set it when prompted, or add to functions/.env.PROJECT_ID"
       );
@@ -53,43 +141,28 @@ export const syncConsentToGoogleDrive = onDocumentCreated(
     }
 
     try {
-      const auth = new google.auth.GoogleAuth({
-        scopes: ["https://www.googleapis.com/auth/drive.file"],
-      });
-      const drive = google.drive({ version: "v3", auth });
-
+      const drive = createDriveClient();
       const fileName = `consent-${docId}-${new Date().toISOString().slice(0, 10)}.json`;
-      const fileContent = JSON.stringify(
-        {
-          id: docId,
-          submittedAt: data.submittedAt,
-          collectorName: data.collectorName,
-          patient: data.patient,
-          respiratory: data.respiratory,
-          uti: data.uti,
-          sti: data.sti,
-          nailFungus: data.nailFungus,
-          signature: data.signature,
-          consentChecked: data.consentChecked,
-        },
-        null,
-        2
-      );
-
-      const file = await drive.files.create({
-        requestBody: {
-          name: fileName,
-          parents: [folderId],
-        },
-        media: {
-          mimeType: "application/json",
-          body: fileContent,
-        },
+      const jsonBody = {
+        id: docId,
+        type: "consent",
+        submittedAt: data.submittedAt,
+        collectorName: data.collectorName,
+        patient: data.patient,
+        respiratory: data.respiratory,
+        uti: data.uti,
+        sti: data.sti,
+        nailFungus: data.nailFungus,
+        signature: data.signature,
+        consentChecked: data.consentChecked,
+      };
+      return await uploadJsonToCompletedForms({
+        drive,
+        rootFolderId: rootId,
+        fileName,
+        jsonBody,
+        docRef: snap.ref,
       });
-
-      logger.info(`Uploaded consent ${docId} to Drive: ${file.data.id}`);
-      await snap.ref.update({ googleDriveFileId: file.data.id });
-      return file.data.id;
     } catch (err) {
       logger.error("Google Drive upload failed", err);
       await snap.ref.update({
@@ -97,7 +170,105 @@ export const syncConsentToGoogleDrive = onDocumentCreated(
       });
       throw err;
     }
-  });
+  }
+);
+
+/**
+ * Precision screening → same completed forms folder
+ */
+export const syncPrecisionScreeningToGoogleDrive = onDocumentCreated(
+  "precisionScreenings/{docId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    const docId = event.params.docId;
+    const data = snap.data();
+    if (data?.sendToGoogleDrive === false) {
+      logger.info(`Skipping Drive sync for precision screening ${docId}`);
+      return null;
+    }
+
+    const rootId = driveFolderId.value();
+    if (!rootId) return null;
+
+    try {
+      const drive = createDriveClient();
+      const fileName = `precision-screening-${docId}-${new Date().toISOString().slice(0, 10)}.json`;
+      const jsonBody = {
+        id: docId,
+        type: "precisionScreening",
+        createdAt: data.createdAt,
+        createdByUid: data.createdByUid,
+        patient: data.patient,
+        responses: data.responses,
+        results: data.results,
+        consent: consentBlockForDrive(data.consent as Record<string, unknown> | undefined),
+        nextStep: data.nextStep,
+      };
+      return await uploadJsonToCompletedForms({
+        drive,
+        rootFolderId: rootId,
+        fileName,
+        jsonBody,
+        docRef: snap.ref,
+      });
+    } catch (err) {
+      logger.error("Google Drive upload failed (precision screening)", err);
+      await snap.ref.update({
+        googleDriveError: err instanceof Error ? err.message : "Upload failed",
+      });
+      throw err;
+    }
+  }
+);
+
+/**
+ * Precision diagnostic → same completed forms folder
+ */
+export const syncPrecisionDiagnosticToGoogleDrive = onDocumentCreated(
+  "precisionDiagnosticScreenings/{docId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    const docId = event.params.docId;
+    const data = snap.data();
+    if (data?.sendToGoogleDrive === false) {
+      logger.info(`Skipping Drive sync for precision diagnostic ${docId}`);
+      return null;
+    }
+
+    const rootId = driveFolderId.value();
+    if (!rootId) return null;
+
+    try {
+      const drive = createDriveClient();
+      const fileName = `precision-diagnostic-${docId}-${new Date().toISOString().slice(0, 10)}.json`;
+      const jsonBody = {
+        id: docId,
+        type: "precisionDiagnostic",
+        createdAt: data.createdAt,
+        createdByUid: data.createdByUid,
+        patient: data.patient,
+        responses: data.responses,
+        results: data.results,
+        consent: consentBlockForDrive(data.consent as Record<string, unknown> | undefined),
+      };
+      return await uploadJsonToCompletedForms({
+        drive,
+        rootFolderId: rootId,
+        fileName,
+        jsonBody,
+        docRef: snap.ref,
+      });
+    } catch (err) {
+      logger.error("Google Drive upload failed (precision diagnostic)", err);
+      await snap.ref.update({
+        googleDriveError: err instanceof Error ? err.message : "Upload failed",
+      });
+      throw err;
+    }
+  }
+);
 
 /**
  * POSTs form submission data to the form owner's webhook URL when configured.

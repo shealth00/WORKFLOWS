@@ -213,6 +213,7 @@ export default function PrecisionDiagnostic() {
       const docRef = await addDoc(collection(db, 'precisionDiagnosticScreenings'), {
         createdAt: serverTimestamp(),
         createdByUid: user.uid,
+        sendToGoogleDrive: true,
         patient,
         responses,
         results,

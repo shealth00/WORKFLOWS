@@ -11,6 +11,7 @@ import { Loader2, FileText, ClipboardCheck, ChevronRight, UserCircle } from 'luc
 import { format } from 'date-fns';
 import type { PatientProfile, PatientProfilesPayload } from '../types/patientDirectory';
 import { findMatchingDirectoryProfiles } from '../utils/patientProfileMatch';
+import { fetchServerPatientDirectoryPayload, loadBrowserImportedDirectory } from '../utils/patientDirectoryBrowserImport';
 
 interface ConsentSubmission {
   id: string;
@@ -80,17 +81,18 @@ const PatientPortal: React.FC = () => {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      const load = async (path: string) => {
-        const res = await fetch(path, { cache: 'no-store' });
-        if (!res.ok) return null;
-        return (await res.json()) as PatientProfilesPayload;
-      };
-      const primary = await load('/patient-directory/profiles.json');
-      const data =
-        primary?.profiles?.length ? primary : (await load('/patient-directory/profiles.demo.json'));
-      if (!cancelled && data?.profiles) {
-        setDirectoryProfiles(data.profiles);
-        setDirectoryMeta({ generatedAt: data.generatedAt });
+      const imported = loadBrowserImportedDirectory();
+      if (imported?.profiles?.length) {
+        if (!cancelled) {
+          setDirectoryProfiles(imported.profiles);
+          setDirectoryMeta({ generatedAt: imported.generatedAt });
+        }
+        return;
+      }
+      const { payload } = await fetchServerPatientDirectoryPayload();
+      if (!cancelled && payload?.profiles?.length) {
+        setDirectoryProfiles(payload.profiles);
+        setDirectoryMeta({ generatedAt: payload.generatedAt });
       }
     })();
     return () => {
