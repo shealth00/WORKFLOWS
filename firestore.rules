@@ -35,6 +35,15 @@ service cloud.firestore {
              data.email is string;
     }
 
+    function isValidUserCreate(data) {
+      return isValidUser(data) && !data.keys().hasAny(['role']);
+    }
+
+    // Clients cannot add or change `role`; set `admin` in Firebase Console only.
+    function userRoleImmutable() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+    }
+
     function isValidForm(data) {
       return data.keys().hasAll(['title', 'ownerId', 'fields']) &&
              data.title is string && data.title.size() < 200 &&
@@ -51,7 +60,8 @@ service cloud.firestore {
     // Rules
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create, update: if isOwner(userId) && isValidUser(request.resource.data);
+      allow create: if isOwner(userId) && isValidUserCreate(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && userRoleImmutable();
 
       match /integrations/{integrationId} {
         allow read, write: if isOwner(userId);

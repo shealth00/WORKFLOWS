@@ -29,12 +29,16 @@ export interface Submission {
   submitterId?: string;
 }
 
+export type UserRole = 'staff' | 'admin';
+
 export interface UserProfile {
   uid: string;
   email: string;
   displayName?: string;
   photoURL?: string;
   createdAt: any;
+  /** Set only via Firebase Console or trusted scripts — clients cannot change this field (see firestore.rules). */
+  role?: UserRole;
 }
 
 export type PrecisionScreeningDecision = 'AUTO_ORDER' | 'PROVIDER_REVIEW' | 'NO_TEST';

@@ -1,16 +1,45 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { db, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc } from '../firebase';
 import { useAuth } from '../AuthContext';
 import { FormDefinition } from '../types';
 import Navbar from '../components/Navbar';
 import FormCard from '../components/FormCard';
-import { Plus, Search, Sparkles, Loader2, FileText } from 'lucide-react';
+import PatientDirectoryPanel from '../components/PatientDirectoryPanel';
+import { Plus, Sparkles, Loader2, FileText, Users } from 'lucide-react';
 import { generateFormFromPrompt } from '../geminiService';
 import ChatBot from '../components/ChatBot';
+import { isAdminUser } from '../utils/isAdminUser';
+
+const WORKSPACE_TAB_KEY = 'tab';
+const WORKSPACE_PATIENT_PROFILE_KEY = 'profile';
 
 const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const admin = useMemo(() => isAdminUser(user?.email ?? null, profile), [user?.email, profile]);
+
+  const workspaceTab =
+    admin && searchParams.get(WORKSPACE_TAB_KEY) === 'patients' ? 'patients' : 'forms';
+  const patientProfileId = searchParams.get(WORKSPACE_PATIENT_PROFILE_KEY) ?? undefined;
+
+  const setWorkspaceTab = (tab: 'forms' | 'patients') => {
+    if (tab === 'forms') {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete(WORKSPACE_TAB_KEY);
+        next.delete(WORKSPACE_PATIENT_PROFILE_KEY);
+        return next;
+      });
+    } else {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set(WORKSPACE_TAB_KEY, 'patients');
+        next.delete(WORKSPACE_PATIENT_PROFILE_KEY);
+        return next;
+      });
+    }
+  };
   const [forms, setForms] = useState<FormDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
@@ -131,11 +160,16 @@ const Dashboard: React.FC = () => {
     );
   }
 
+  const patientListPath = '/workspace?tab=patients';
+  const patientProfilePath = (id: string) =>
+    `/workspace?${WORKSPACE_TAB_KEY}=patients&${WORKSPACE_PATIENT_PROFILE_KEY}=${encodeURIComponent(id)}`;
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar onNewForm={handleCreateNew} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {workspaceTab === 'forms' && (
         <Link
           to="/consent"
           className="block mb-8 p-6 bg-white rounded-2xl shadow-lg border border-slate-200 hover:border-orange-200 hover:shadow-xl transition-all group"
@@ -151,14 +185,46 @@ const Dashboard: React.FC = () => {
             <span className="text-orange-600 font-medium group-hover:translate-x-1 transition-transform">Open →</span>
           </div>
         </Link>
+        )}
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">My Workspace</h1>
-            <p className="text-black/50">Your forms and creations</p>
+            <p className="text-black/50">
+              {admin && workspaceTab === 'patients' ? 'Patient directory (admin)' : 'Your forms and creations'}
+            </p>
           </div>
           
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            {admin && (
+              <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setWorkspaceTab('forms')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    workspaceTab === 'forms'
+                      ? 'bg-orange-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  My forms
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWorkspaceTab('patients')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    workspaceTab === 'patients'
+                      ? 'bg-orange-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Users size={18} />
+                  Patient directory
+                </button>
+              </div>
+            )}
+            {workspaceTab === 'forms' && (
+            <div className="flex gap-3">
             <button 
               onClick={() => setShowAiModal(true)}
               className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-indigo-700 transition-all shadow-md hover:shadow-lg"
@@ -173,14 +239,27 @@ const Dashboard: React.FC = () => {
               <Plus size={20} />
               Blank Form
             </button>
+            </div>
+            )}
           </div>
         </div>
 
-        {loading ? (
+        {admin && workspaceTab === 'patients' && (
+          <div className="max-w-3xl mb-12">
+            <PatientDirectoryPanel
+              profileId={patientProfileId}
+              listPath={patientListPath}
+              profilePath={patientProfilePath}
+              compact
+            />
+          </div>
+        )}
+
+        {workspaceTab === 'forms' && loading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="animate-spin text-orange-600" size={40} />
           </div>
-        ) : forms.length > 0 ? (
+        ) : workspaceTab === 'forms' && forms.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {forms.map(form => (
               <FormCard 
@@ -193,7 +272,7 @@ const Dashboard: React.FC = () => {
               />
             ))}
           </div>
-        ) : (
+        ) : workspaceTab === 'forms' ? (
           <div className="bg-white border border-dashed border-black/10 rounded-3xl p-20 text-center">
             <div className="w-20 h-20 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-6">
               <FileText className="text-black/20" size={40} />
@@ -212,7 +291,7 @@ const Dashboard: React.FC = () => {
               </button>
             </div>
           </div>
-        )}
+        ) : null}
       </main>
 
       {/* AI Modal */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { db, doc, getDoc, addDoc, collection, serverTimestamp } from '../firebase';
+import { auth, db, doc, getDoc, addDoc, collection, serverTimestamp } from '../firebase';
 import { FormDefinition } from '../types';
 import { Loader2, CheckCircle2, Mic, MicOff, Volume2 } from 'lucide-react';
 import { transcribeAudio, generateSpeech } from '../geminiService';
@@ -92,11 +92,14 @@ const ViewForm: React.FC = () => {
     setSubmitting(true);
     try {
       const precisionDiagnosticResults = buildPrecisionDiagnosticResultsIfApplicable();
+      const uid = auth.currentUser?.uid;
       await addDoc(collection(db, 'forms', id, 'submissions'), {
         formId: id,
         data: formData,
         results: precisionDiagnosticResults,
-        submittedAt: serverTimestamp()
+        submittedAt: serverTimestamp(),
+        sendToGoogleDrive: true,
+        ...(uid ? { submittedByUid: uid } : {}),
       });
       setSubmitted(true);
     } catch (error) {
