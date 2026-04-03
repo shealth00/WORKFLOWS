@@ -42,7 +42,7 @@ const DEFAULT_PATIENT: Patient = {
   idCardUrlBack: '',
 };
 
-const DEFAULT_RESPONSES: PrecisionScreeningResponses & { adherenceConcern: boolean } = {
+const DEFAULT_RESPONSES: PrecisionScreeningResponses = {
   medFailure: false,
   sideEffects: false,
   triedMultipleMedications: false,
@@ -61,6 +61,7 @@ const DEFAULT_RESPONSES: PrecisionScreeningResponses & { adherenceConcern: boole
 
   controlledMeds: false,
   painManagement: false,
+  medicationAdherenceConcern: false,
 
   cancerFamilyHistory: false,
   heartDiseaseFamilyHistory: false,
@@ -69,8 +70,6 @@ const DEFAULT_RESPONSES: PrecisionScreeningResponses & { adherenceConcern: boole
   weightLoss: false,
   nutritionOptimization: false,
   vitaminConcerns: false,
-
-  adherenceConcern: false,
 };
 
 export default function PrecisionDiagnostic() {
@@ -190,18 +189,7 @@ export default function PrecisionDiagnostic() {
     consented &&
     signatureTyped.trim();
 
-  const buildEvaluationResponses = (): PrecisionScreeningResponses => {
-    const { adherenceConcern, ...rest } = responses;
-    // Adherence concern should also trigger Toxicology routing in this diagnostic form.
-    const toxTriggered = rest.controlledMeds || rest.painManagement || adherenceConcern;
-    return {
-      ...rest,
-      controlledMeds: rest.controlledMeds || adherenceConcern,
-      painManagement: rest.painManagement || toxTriggered,
-    };
-  };
-
-  const results = evaluatePrecisionScreening(buildEvaluationResponses());
+  const results = evaluatePrecisionScreening(responses);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -418,7 +406,7 @@ export default function PrecisionDiagnostic() {
                 <div className="space-y-1">
                   <Check id="controlledMeds" label="On controlled medications" />
                   <Check id="painManagement" label="Pain management program" />
-                  <Check id="adherenceConcern" label="Concern for medication adherence" />
+                  <Check id="medicationAdherenceConcern" label="Concern for medication adherence" />
                 </div>
               </Section>
 

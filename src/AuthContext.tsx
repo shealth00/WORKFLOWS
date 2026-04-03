@@ -3,7 +3,7 @@
  *
  * Architecture:
  * - Subscribes to onAuthStateChanged; on sign-in, fetches or creates users/{uid} profile
- * - Profile: uid, email, displayName, photoURL, createdAt
+ * - Profile: uid, email, displayName, photoURL, createdAt, optional role (see firestore.rules)
  * - Persistence: browserLocalPersistence (configured in firebase.ts)
  */
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -31,29 +31,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
-      setLoading(false);
 
-      if (firebaseUser) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          if (userDoc.exists()) {
-            setProfile(userDoc.data() as UserProfile);
-          } else {
-            const newProfile: UserProfile = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || '',
-              photoURL: firebaseUser.photoURL || '',
-              createdAt: serverTimestamp(),
-            };
-            await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
-            setProfile(newProfile);
-          }
-        } catch {
-          setProfile({ uid: firebaseUser.uid, email: firebaseUser.email || '', displayName: firebaseUser.displayName || '', photoURL: firebaseUser.photoURL || '', createdAt: null });
-        }
-      } else {
+      if (!firebaseUser) {
         setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+          setProfile(userDoc.data() as UserProfile);
+        } else {
+          const newProfile: UserProfile = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            displayName: firebaseUser.displayName || '',
+            photoURL: firebaseUser.photoURL || '',
+            createdAt: serverTimestamp(),
+          };
+          await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+          setProfile(newProfile);
+        }
+      } catch {
+        setProfile({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || '',
+          photoURL: firebaseUser.photoURL || '',
+          createdAt: null,
+        });
+      } finally {
+        setLoading(false);
       }
     });
 

@@ -54,6 +54,7 @@ const DEFAULT_RESPONSES: PrecisionScreeningResponses = {
 
   controlledMeds: false,
   painManagement: false,
+  medicationAdherenceConcern: false,
 
   cancerFamilyHistory: false,
   heartDiseaseFamilyHistory: false,
@@ -518,6 +519,7 @@ export default function PrecisionScreening() {
             <div className="space-y-3">
               <CheckboxRow id="controlledMeds" label="On controlled medications" />
               <CheckboxRow id="painManagement" label="Pain management program" />
+              <CheckboxRow id="medicationAdherenceConcern" label="Concern for medication adherence" />
             </div>
             <WizardNav goBack={goBack} goNext={goNext} />
           </SectionCard>

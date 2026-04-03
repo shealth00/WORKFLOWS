@@ -19,6 +19,7 @@ function emptyResponses(): PrecisionScreeningResponses {
     giSymptoms: false,
     controlledMeds: false,
     painManagement: false,
+    medicationAdherenceConcern: false,
     cancerFamilyHistory: false,
     heartDiseaseFamilyHistory: false,
     neuroFamilyHistory: false,
@@ -141,6 +142,19 @@ describe('evaluatePrecisionScreening', () => {
         billingCodes: ['80307'],
         confirmatoryIfNeeded: true,
         reasons: ['On controlled medications', 'Pain management program'],
+      })
+    );
+  });
+
+  it('suggests UDS when only medication adherence concern is checked (not pain management)', () => {
+    const r = evaluatePrecisionScreening({
+      ...emptyResponses(),
+      medicationAdherenceConcern: true,
+    });
+    expect(r.suggestedOrders).toContainEqual(
+      expect.objectContaining({
+        testKey: 'UDS_80307',
+        reasons: ['Concern for medication adherence'],
       })
     );
   });

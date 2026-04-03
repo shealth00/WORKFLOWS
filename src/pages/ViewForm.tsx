@@ -71,8 +71,9 @@ const ViewForm: React.FC = () => {
       urinarySymptoms: sec3.includes('Urinary symptoms (burning, frequency)'),
       giSymptoms: sec3.includes('GI symptoms (diarrhea, nausea)'),
 
-      controlledMeds: sec4.includes('On controlled medications') || sec4.includes('Concern for medication adherence'),
+      controlledMeds: sec4.includes('On controlled medications'),
       painManagement: sec4.includes('Pain management program'),
+      medicationAdherenceConcern: sec4.includes('Concern for medication adherence'),
 
       cancerFamilyHistory: sec5.includes('Cancer in family'),
       heartDiseaseFamilyHistory: sec5.includes('Heart disease'),

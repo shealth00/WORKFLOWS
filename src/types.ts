@@ -72,9 +72,11 @@ export interface PrecisionScreeningResponses {
   urinarySymptoms: boolean;
   giSymptoms: boolean;
 
-  // Section 4: Medication Monitoring
+  // Section 4: Medication Monitoring / toxicology triggers
   controlledMeds: boolean;
   painManagement: boolean;
+  /** Concern for medication adherence (same-day UDS pathway per screening spec). */
+  medicationAdherenceConcern: boolean;
 
   // Section 5: Family History
   cancerFamilyHistory: boolean;

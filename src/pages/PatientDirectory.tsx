@@ -21,7 +21,7 @@ export default function PatientDirectory() {
     );
   }
 
-  if (!isAdminUser(user?.email, profile)) {
+  if (!isAdminUser(user?.email ?? null, profile)) {
     return <Navigate to="/workspace" replace />;
   }
 

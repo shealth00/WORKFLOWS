@@ -2,8 +2,9 @@
 /**
  * Firebase Cloud Functions for Sally Health
  *
- * Google Drive: Completed forms (consent + precision flows) are saved as JSON under
- * a subfolder named "completed forms" inside the folder configured by DRIVE_FOLDER_ID
+ * Google Drive: Completed forms (consent, precision flows, and form builder submissions)
+ * are saved as JSON under a subfolder named "completed forms" inside the folder
+ * configured by DRIVE_FOLDER_ID
  * (e.g. your "Patient Directory" Drive folder).
  *
  * syncSubmissionToWebhook: POSTs form submission payloads to the form owner's webhook.
@@ -26,7 +27,7 @@ var __rest = (this && this.__rest) || function (s, e) {
     return t;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncSubmissionToWebhook = exports.syncPrecisionDiagnosticToGoogleDrive = exports.syncPrecisionScreeningToGoogleDrive = exports.syncConsentToGoogleDrive = void 0;
+exports.syncFormSubmissionToGoogleDrive = exports.syncSubmissionToWebhook = exports.syncPrecisionDiagnosticToGoogleDrive = exports.syncPrecisionScreeningToGoogleDrive = exports.syncConsentToGoogleDrive = void 0;
 const firestore_1 = require("firebase-functions/v2/firestore");
 const firebase_functions_1 = require("firebase-functions");
 const params_1 = require("firebase-functions/params");
@@ -78,6 +79,20 @@ function consentBlockForDrive(consent) {
         return consent;
     const { signatureImageDataUrl: _img } = consent, rest = __rest(consent, ["signatureImageDataUrl"]);
     return rest;
+}
+function firestoreTimestampToIso(value) {
+    if (value &&
+        typeof value === "object" &&
+        "toDate" in value &&
+        typeof value.toDate === "function") {
+        try {
+            return value.toDate().toISOString();
+        }
+        catch (_a) {
+            return value;
+        }
+    }
+    return value;
 }
 function createDriveClient() {
     const auth = new googleapis_1.google.auth.GoogleAuth({
@@ -293,6 +308,55 @@ exports.syncSubmissionToWebhook = (0, firestore_1.onDocumentCreated)("forms/{for
     catch (err) {
         firebase_functions_1.logger.error("Webhook delivery failed", err);
         return null;
+    }
+});
+/**
+ * Form builder submissions → same completed forms folder (Patient Directory root).
+ * Opt-out: set sendToGoogleDrive: false on the submission document.
+ */
+exports.syncFormSubmissionToGoogleDrive = (0, firestore_1.onDocumentCreated)("forms/{formId}/submissions/{submissionId}", async (event) => {
+    var _a, _b, _c;
+    const snap = event.data;
+    if (!snap)
+        return null;
+    const { formId, submissionId } = event.params;
+    const submissionData = snap.data();
+    if ((submissionData === null || submissionData === void 0 ? void 0 : submissionData.sendToGoogleDrive) === false) {
+        firebase_functions_1.logger.info(`Skipping Drive sync for form submission ${formId}/${submissionId}`);
+        return null;
+    }
+    const rootId = driveFolderId.value();
+    if (!rootId)
+        return null;
+    const formSnap = await admin.firestore().doc(`forms/${formId}`).get();
+    const formTitle = formSnap.exists ? (_a = formSnap.data()) === null || _a === void 0 ? void 0 : _a.title : undefined;
+    try {
+        const drive = createDriveClient();
+        const fileName = `form-${formId}-${submissionId}-${new Date().toISOString().slice(0, 10)}.json`;
+        const jsonBody = {
+            id: submissionId,
+            type: "formSubmission",
+            formId,
+            formTitle: typeof formTitle === "string" ? formTitle : null,
+            submittedByUid: (_b = submissionData.submittedByUid) !== null && _b !== void 0 ? _b : null,
+            data: submissionData.data,
+            results: (_c = submissionData.results) !== null && _c !== void 0 ? _c : null,
+            submittedAt: firestoreTimestampToIso(submissionData.submittedAt),
+        };
+        return await uploadJsonToCompletedForms({
+            drive,
+            rootFolderId: rootId,
+            fileName,
+            jsonBody,
+            docRef: snap.ref,
+        });
+    }
+    catch (err) {
+        firebase_functions_1.logger.error("Google Drive upload failed (form submission)", err);
+        await snap.ref.update({
+            googleDriveError: err instanceof Error ? err.message : "Upload failed",
+        });
+        throw err;
     }
 });
 //# sourceMappingURL=index.js.map

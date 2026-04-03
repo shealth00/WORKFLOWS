@@ -42,7 +42,10 @@ export function evaluatePrecisionScreening(responses: PrecisionScreeningResponse
     responses.urinarySymptoms ||
     responses.giSymptoms;
 
-  const painMedsAny = responses.controlledMeds || responses.painManagement;
+  const painMedsAny =
+    responses.controlledMeds ||
+    responses.painManagement ||
+    responses.medicationAdherenceConcern;
 
   const mentalHealthAny =
     responses.depressionAnxiety ||
@@ -108,6 +111,7 @@ export function evaluatePrecisionScreening(responses: PrecisionScreeningResponse
     const reasons: string[] = [];
     if (responses.controlledMeds) reasons.push('On controlled medications');
     if (responses.painManagement) reasons.push('Pain management program');
+    if (responses.medicationAdherenceConcern) reasons.push('Concern for medication adherence');
     suggestedOrders.push({
       testKey: 'UDS_80307',
       displayName: 'Urine Drug Screen (UDS)',

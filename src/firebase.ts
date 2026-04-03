@@ -2,7 +2,8 @@
  * Firebase initialization and exports.
  *
  * Exports: auth, db, storage, googleProvider, and Firestore/Storage helpers.
- * Collections: users, forms, forms/{id}/submissions, consentSubmissions,
+ * Collections: users, forms, forms/{id}/submissions (Drive sync when configured),
+ * consentSubmissions,
  * precisionScreenings, precisionDiagnosticScreenings.
  * Storage: consent-uploads/{uid}/..., precision-diagnostic/{uid}/...
  */
