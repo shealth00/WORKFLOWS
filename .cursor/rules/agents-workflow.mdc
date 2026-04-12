@@ -1,0 +1,11 @@
+---
+description: Shared workflow for Cursor Agent and local Codex CLI — read AGENTS.md and validate before commits
+alwaysApply: true
+---
+
+# Project workflow (Cursor + Codex)
+
+- Before multi-file or risky edits, read **`docs/AGENTS.md`** in this repo (layout, commands, security).
+- After substantive changes, run from repo root: `npm run preflight`, then `npm run typecheck`, `npm run test`, and `npm run build` (and `npm run build --prefix functions` if `functions/` changed).
+- Do not duplicate long orchestration text here; keep **`docs/AGENTS.md`** as the single source of truth and update that file when workflow changes.
+- Treat `Patient Directory/` and clinical exports as sensitive; do not suggest committing ignored PHI paths.

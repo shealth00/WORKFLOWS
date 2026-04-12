@@ -28,9 +28,30 @@ Use this file before multi-file changes so planning, edits, and verification sta
 
 **Order before a PR or deploy:** `preflight` → `typecheck` → `test` → `build` → `npm run build --prefix functions` when Functions changed.
 
+## Cursor IDE + Codex CLI on the same machine
+
+Use **one git clone** and the **same branch** for both tools so files and history stay consistent.
+
+| Tool | Best for | How to align |
+|------|-----------|----------------|
+| **Cursor** | Interactive edits, refactors across open files, Composer/Agent with repo context | Open the repo folder as the workspace. Mention `@docs/AGENTS.md` in Agent chat when starting a larger task. The rule `.cursor/rules/agents-workflow.mdc` reminds the agent to follow this doc. |
+| **Codex CLI** (local) | Terminal-driven edits, scripted refactors, batch changes from the shell | `cd` to this repo root; run `npm run preflight` before and the verification commands after edits. |
+
+**Avoid conflicts**
+
+- Pull or sync (`git pull`) before switching from Codex back to Cursor (or vice versa).
+- Prefer **commit or stash** between handoffs so each tool sees a clean tree.
+- Do not edit the **same file** in both tools at once without committing or stashing in between.
+- Optional: use a short-lived branch for Codex (`codex/<topic>`), merge via PR or fast-forward after review in Cursor.
+
+**Suggested handoff**
+
+1. Finish Codex session → `npm run typecheck && npm run test && npm run build` → commit.
+2. In Cursor → `git pull` → continue.
+
 ## Codex CLI workflow
 
-1. Open this repository as the working directory.
+1. Open this repository as the working directory (`cd` to repo root).
 2. Run `npm run preflight` and fix any missing paths before editing.
 3. Make changes; keep one coherent theme per session (avoid mixing unrelated packages).
 4. Run the verification row above; do not commit if any step fails.
