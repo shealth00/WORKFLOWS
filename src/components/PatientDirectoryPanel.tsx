@@ -207,7 +207,8 @@ export default function PatientDirectoryPanel({ profileId, listPath, profilePath
             Bulk upload (CSV)
           </h3>
           <p className="text-xs text-slate-500 mb-3">
-            Columns: <strong>Patient Name</strong> (required), DOB, MRN / ID, Phone, Address, Recent Visit / Date, Email.
+            <strong>Standard CSV:</strong> Patient Name (required), DOB, MRN / ID, Phone, Address, Recent Visit / Date, Email.{' '}
+            <strong>EMR export:</strong> FirstName + LastName, RecordId, DateOfBirth, Email ID, phones, address lines, Date Of Joining — same as files in <code className="bg-slate-100 px-1 rounded">Patient Directory/</code>.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <input

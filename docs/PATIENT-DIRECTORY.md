@@ -1,19 +1,32 @@
-# Patient Directory (import from `patient upload`)
+# Patient Directory (CSV merge or `patient upload` spreadsheet)
 
-Staff-only route: **`/patient-directory`**. Lists profiles imported from spreadsheets in the **`patient upload/`** folder and served as static JSON under **`/patient-directory/profiles.json`** after build.
+Staff-only route: **`/patient-directory`**. Profiles are served as static JSON under **`/patient-directory/profiles.json`** after build (and admin workspace **Patient directory** tab uses the same data).
 
 ## Workflow
 
-1. Place **`*.xlsx`** in **`patient upload/`** (e.g. `Workflow_Cursor_Patient_Profiles.xlsx`).  
-   Expected sheet: **Patient Profiles** with columns: **Patient Name**, **DOB**, **MRN / ID**, **Phone**, **Address**, **Recent Visit / Date**.
+**Option A — EMR / bulk CSV (preferred when you have facility exports)**
 
-2. Generate JSON for the site:
+1. Place one or more **`*.csv`** files in **`Patient Directory/`** (repo root).  
+   Supported format: headers include **FirstName**, **LastName** (e.g. exports with **RecordId**, **DateOfBirth(mm/dd/yyyy)**, **Email ID**, phones, **Address Line1**, **City**, **State**, **Zip Code**, **Date Of Joining**). All CSVs in that folder are merged into one list.
+
+2. Generate JSON:
 
    ```bash
    npm run generate:patient-profiles
    ```
 
-   This writes **`public/patient-directory/profiles.json`** (gitignored; contains PHI if your sheet does).
+   This writes **`public/patient-directory/profiles.json`** (gitignored if configured; may contain PHI).
+
+**Option B — Single spreadsheet**
+
+1. If **no** CSV files exist in **`Patient Directory/`**, the script looks for **`*.xlsx`** in **`patient upload/`** (e.g. `Workflow_Cursor_Patient_Profiles.xlsx`).  
+   Expected sheet: **Patient Profiles** with columns: **Patient Name**, **DOB**, **MRN / ID**, **Phone**, **Address**, **Recent Visit / Date**, **Email** (optional).
+
+2. Run the same command:
+
+   ```bash
+   npm run generate:patient-profiles
+   ```
 
 3. Build and deploy:
 

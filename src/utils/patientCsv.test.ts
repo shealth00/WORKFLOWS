@@ -36,6 +36,20 @@ Jane,2000-01-01
   it('throws without name column', () => {
     expect(() => patientProfilesFromCsv('DOB\n2000-01-01')).toThrow(/Patient Name/);
   });
+
+  it('parses EMR export CSV (FirstName, LastName, RecordId)', () => {
+    const csv = `FirstName,MiddleName,LastName,RecordId,Gender,DateOfBirth(mm/dd/yyyy),Email ID,Home Phone,Mobile Phone,Address Line1,City,State,Zip Code,Date Of Joining
+June,,Tcheng,DB0001,female,12/08/2004,hntcheng@yahoo.com,,,820 S Park Terr,CHICAGO,Illinois,60605,"Feb 24, 2025"
+`;
+    const p = patientProfilesFromCsv(csv, 'test-export.csv');
+    expect(p.profiles).toHaveLength(1);
+    expect(p.profiles[0]!.name).toBe('June Tcheng');
+    expect(p.profiles[0]!.mrn).toBe('DB0001');
+    expect(p.profiles[0]!.dob).toBe('2004-12-08');
+    expect(p.profiles[0]!.email).toBe('hntcheng@yahoo.com');
+    expect(p.profiles[0]!.id).toContain('test-export');
+    expect(p.profiles[0]!.id).toContain('db0001');
+  });
 });
 
 describe('splitCsvLines', () => {

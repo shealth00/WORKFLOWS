@@ -115,6 +115,110 @@ function headerToColIndex(headerRow: string[]): Map<keyof ParsedCols, number> {
   return map;
 }
 
+function isEmrExportHeader(headerRow: string[]): boolean {
+  const norm = headerRow.map((h) => normalizeHeader(h));
+  return norm.includes('firstname') && norm.includes('lastname');
+}
+
+function rowToKeyMap(headerRow: string[], cells: string[]): Record<string, string> {
+  const o: Record<string, string> = {};
+  headerRow.forEach((h, i) => {
+    o[normalizeHeader(h)] = (cells[i] ?? '').trim();
+  });
+  return o;
+}
+
+function emrPick(row: Record<string, string>, ...labels: string[]): string {
+  for (const label of labels) {
+    const v = row[normalizeHeader(label)];
+    if (v !== undefined && v !== '') return v;
+  }
+  return '';
+}
+
+function normalizeEmrDob(raw: string): string {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[1]!.padStart(2, '0')}-${m[2]!.padStart(2, '0')}`;
+  return s;
+}
+
+function emrDob(row: Record<string, string>): string {
+  let v = emrPick(row, 'DateOfBirth(mm/dd/yyyy)', 'Date Of Birth', 'DOB');
+  if (!v) {
+    for (const key of Object.keys(row)) {
+      if (key.includes('dateofbirth') && row[key]) {
+        v = row[key]!;
+        break;
+      }
+    }
+  }
+  return normalizeEmrDob(v);
+}
+
+function emrAddress(row: Record<string, string>): string {
+  return [
+    emrPick(row, 'Address Line1', 'Address Line 1'),
+    emrPick(row, 'Address Line2', 'Address Line 2'),
+    emrPick(row, 'City'),
+    emrPick(row, 'State'),
+    emrPick(row, 'Zip Code', 'Zip'),
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
+function emrPhone(row: Record<string, string>): string {
+  return (
+    emrPick(row, 'Home Phone') ||
+    emrPick(row, 'Mobile Phone') ||
+    emrPick(row, 'Work Phone')
+  );
+}
+
+function patientProfilesFromEmrCsv(
+  lines: string[],
+  headerCells: string[],
+  filename: string
+): PatientProfilesPayload {
+  const profiles: PatientProfile[] = [];
+  const idPrefix = slugify(filename.replace(/\.csv$/i, '')) || 'import';
+  for (let r = 1; r < lines.length; r++) {
+    const cells = parseCsvRecordLine(lines[r]!);
+    const row = rowToKeyMap(headerCells, cells);
+    const first = emrPick(row, 'FirstName', 'First Name');
+    const mid = emrPick(row, 'MiddleName', 'Middle Name');
+    const last = emrPick(row, 'LastName', 'Last Name');
+    const name = [first, mid, last].filter(Boolean).join(' ').trim();
+    if (!name) continue;
+    const recordId = emrPick(row, 'RecordId', 'Record ID', 'MRN') || String(profiles.length + 1);
+    const id = `${idPrefix}-${slugify(recordId)}`;
+    const emailRaw = formatCell(emrPick(row, 'Email ID', 'Email', 'E-mail', 'Patient Email'));
+    const entry: PatientProfile = {
+      id,
+      name,
+      dob: emrDob(row),
+      mrn: recordId,
+      phone: formatCell(emrPhone(row)),
+      address: formatCell(emrAddress(row)),
+      recentVisit: formatCell(
+        emrPick(row, 'Date Of Joining', 'Recent Visit / Date', 'Recent Visit')
+      ),
+    };
+    profiles.push(emailRaw ? { ...entry, email: emailRaw } : entry);
+  }
+  if (profiles.length === 0) {
+    throw new Error('No rows with FirstName + LastName were found.');
+  }
+  return {
+    source: filename,
+    generatedAt: new Date().toISOString(),
+    count: profiles.length,
+    profiles,
+  };
+}
+
 function cell(row: string[], col: Map<keyof ParsedCols, number>, key: keyof ParsedCols): string {
   const i = col.get(key);
   if (i === undefined) return '';
@@ -127,9 +231,12 @@ export function patientProfilesFromCsv(text: string, filename = 'upload.csv'): P
     throw new Error('CSV needs a header row and at least one data row.');
   }
   const headerCells = parseCsvRecordLine(lines[0]!);
+  if (isEmrExportHeader(headerCells)) {
+    return patientProfilesFromEmrCsv(lines, headerCells, filename);
+  }
   const col = headerToColIndex(headerCells);
   if (!col.has('name')) {
-    throw new Error('Missing required column: Patient Name (or "Name").');
+    throw new Error('Missing required column: Patient Name (or EMR export with FirstName + LastName).');
   }
 
   const profiles: PatientProfile[] = [];
