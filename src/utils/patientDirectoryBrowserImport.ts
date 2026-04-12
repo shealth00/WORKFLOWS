@@ -1,7 +1,9 @@
 /**
  * Optional in-browser patient directory (CSV bulk upload). Stored per-browser via localStorage.
- * For production-wide directory data, use build-time profiles.json or a backend.
+ * Staff directory data: Firestore settings/patientDirectory.payloadJson (admin) or demo JSON fallback.
  */
+import type { Firestore } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import type { PatientProfilesPayload } from '../types/patientDirectory';
 
 const STORAGE_KEY = 'workflows-patient-directory-csv-import-v1';
@@ -26,21 +28,41 @@ export function clearBrowserImportedDirectory(): void {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-export async function fetchServerPatientDirectoryPayload(): Promise<{
+/**
+ * Loads staff directory: browser import first, then Firestore (admins only), then demo asset.
+ * Does not fetch public profiles.json (removed for PHI safety).
+ */
+export async function fetchPatientDirectoryPayload(options: {
+  db: Firestore;
+  isStaffAdmin: boolean;
+}): Promise<{
   payload: PatientProfilesPayload | null;
   usingDemo: boolean;
 }> {
-  const resMain = await fetch('/patient-directory/profiles.json', { cache: 'no-store' });
+  const imported = loadBrowserImportedDirectory();
+  if (imported?.profiles?.length) {
+    return { payload: imported, usingDemo: false };
+  }
+  if (options.isStaffAdmin) {
+    try {
+      const snap = await getDoc(doc(options.db, 'settings', 'patientDirectory'));
+      const raw = snap.data()?.payloadJson;
+      if (typeof raw === 'string' && raw.length) {
+        const data = JSON.parse(raw) as PatientProfilesPayload;
+        if (data?.profiles?.length) {
+          return { payload: data, usingDemo: false };
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
   const resDemo = await fetch('/patient-directory/profiles.demo.json', { cache: 'no-store' });
-  let payload: PatientProfilesPayload | null = null;
-  let usingDemo = false;
-  if (resMain.ok) {
-    const data = (await resMain.json()) as PatientProfilesPayload;
-    if (data.profiles?.length) payload = data;
+  if (resDemo.ok) {
+    const payload = (await resDemo.json()) as PatientProfilesPayload;
+    if (payload?.profiles?.length) {
+      return { payload, usingDemo: true };
+    }
   }
-  if (!payload && resDemo.ok) {
-    payload = (await resDemo.json()) as PatientProfilesPayload;
-    usingDemo = Boolean(payload?.profiles?.length);
-  }
-  return { payload: payload?.profiles?.length ? payload : null, usingDemo };
+  return { payload: null, usingDemo: true };
 }

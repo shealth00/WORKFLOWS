@@ -57,6 +57,12 @@ service cloud.firestore {
              data.data is map;
     }
 
+    function isStaffAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // Rules
     match /users/{userId} {
       allow read: if isAuthenticated();
@@ -83,20 +89,26 @@ service cloud.firestore {
       allow read: if true;
     }
 
+    // Staff-only patient directory payload (single doc; writes via Admin SDK / Console only)
+    match /settings/{docId} {
+      allow read: if docId == 'patientDirectory' && isStaffAdmin();
+      allow write: if false;
+    }
+
     // Precision screening submissions (wizard + diagnostic)
     match /precisionScreenings/{docId} {
       allow create: if isAuthenticated() && request.resource.data.createdByUid == request.auth.uid;
-      allow read: if isAuthenticated();
+      allow read: if resource.data.createdByUid == request.auth.uid || isStaffAdmin();
     }
     match /precisionDiagnosticScreenings/{docId} {
       allow create: if isAuthenticated() && request.resource.data.createdByUid == request.auth.uid;
-      allow read: if isAuthenticated();
+      allow read: if resource.data.createdByUid == request.auth.uid || isStaffAdmin();
     }
 
     // Consent form submissions (Sally Health)
     match /consentSubmissions/{docId} {
       allow create: if isAuthenticated() && request.resource.data.submittedByUid == request.auth.uid;
-      allow read: if isAuthenticated();
+      allow read: if resource.data.submittedByUid == request.auth.uid || isStaffAdmin();
     }
   }
 }

@@ -11,3 +11,6 @@ coverage/
 # Patient import: contains PHI — do not commit spreadsheet or generated JSON
 patient upload/
 public/patient-directory/profiles.json
+
+# Facility exports under Patient Directory/ (CSV/XLSX) — PHI; keep local only
+Patient Directory/

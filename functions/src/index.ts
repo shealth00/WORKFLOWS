@@ -16,14 +16,19 @@
  */
 
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
-import { defineString } from "firebase-functions/params";
+import { defineSecret, defineString } from "firebase-functions/params";
+import { findMatchingDirectoryProfilesServer, type PatientProfileLite } from "./patientMatch";
+import * as geminiServer from "./geminiServer";
 import * as admin from "firebase-admin";
 import type { DocumentReference } from "firebase-admin/firestore";
 import { google } from "googleapis";
 import type { drive_v3 } from "googleapis";
 
 admin.initializeApp();
+
+const geminiApiKey = defineSecret("GEMINI_API_KEY");
 
 const COMPLETED_FORMS_FOLDER_NAME = "completed forms";
 
@@ -388,3 +393,95 @@ export const syncFormSubmissionToGoogleDrive = onDocumentCreated(
     }
   }
 );
+
+/** Gemini API proxy — key stored in Secret Manager; client never sees the key in production builds. */
+export const geminiProxy = onCall(
+  { secrets: [geminiApiKey], region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+    const key = geminiApiKey.value();
+    if (!key) {
+      throw new HttpsError("failed-precondition", "GEMINI_API_KEY secret not set for functions");
+    }
+    const data = request.data as { action?: string; [key: string]: unknown };
+    const action = data.action;
+    try {
+      switch (action) {
+        case "generateForm":
+          return {
+            result: await geminiServer.geminiGenerateForm(key, String(data.prompt ?? "")),
+          };
+        case "chat":
+          return { text: await geminiServer.geminiChat(key, (data.messages as never) || []) };
+        case "transcribe":
+          return { text: await geminiServer.geminiTranscribe(key, String(data.base64Audio ?? "")) };
+        case "tts":
+          return { audioBase64: await geminiServer.geminiTts(key, String(data.text ?? "")) };
+        default:
+          throw new HttpsError("invalid-argument", "Unknown Gemini action");
+      }
+    } catch (e: unknown) {
+      if (e instanceof HttpsError) throw e;
+      logger.error("geminiProxy error", e);
+      const msg = e instanceof Error ? e.message : "Gemini error";
+      throw new HttpsError("internal", msg);
+    }
+  }
+);
+
+/**
+ * Returns only directory rows that match the signed-in user (no full directory to the client).
+ * Reads payload from settings/patientDirectory.payloadJson (managed via Console or seed script).
+ */
+export const getPatientPortalMatches = onCall({ region: "us-central1" }, async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "Sign in required");
+  }
+  const uid = request.auth.uid;
+  const snap = await admin.firestore().doc("settings/patientDirectory").get();
+  if (!snap.exists) {
+    return { matches: [], generatedAt: null as string | null, source: "none" };
+  }
+  const docData = snap.data() as { payloadJson?: string };
+  const raw = docData.payloadJson;
+  if (!raw) {
+    return { matches: [], generatedAt: null, source: "empty" };
+  }
+  let payload: { profiles?: unknown[]; generatedAt?: string };
+  try {
+    payload = JSON.parse(raw) as { profiles?: unknown[]; generatedAt?: string };
+  } catch {
+    return { matches: [], generatedAt: null, source: "invalid" };
+  }
+  const profiles = (payload.profiles || []) as PatientProfileLite[];
+
+  const consentSnap = await admin
+    .firestore()
+    .collection("consentSubmissions")
+    .where("submittedByUid", "==", uid)
+    .get();
+  const consentFullNames: string[] = [];
+  const consentEmails: string[] = [];
+  for (const d of consentSnap.docs) {
+    const p = d.data().patient as { fullName?: string; email?: string } | undefined;
+    if (p?.fullName) consentFullNames.push(String(p.fullName));
+    if (p?.email) consentEmails.push(String(p.email));
+  }
+
+  const userRecord = await admin.auth().getUser(uid);
+  const matches = findMatchingDirectoryProfilesServer(
+    userRecord.email || undefined,
+    userRecord.displayName || undefined,
+    userRecord.phoneNumber || undefined,
+    profiles,
+    { consentFullNames, consentEmails }
+  );
+
+  return {
+    matches,
+    generatedAt: payload.generatedAt ?? null,
+    source: "firestore",
+  };
+});

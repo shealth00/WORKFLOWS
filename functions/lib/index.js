@@ -27,13 +27,17 @@ var __rest = (this && this.__rest) || function (s, e) {
     return t;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncFormSubmissionToGoogleDrive = exports.syncSubmissionToWebhook = exports.syncPrecisionDiagnosticToGoogleDrive = exports.syncPrecisionScreeningToGoogleDrive = exports.syncConsentToGoogleDrive = void 0;
+exports.getPatientPortalMatches = exports.geminiProxy = exports.syncFormSubmissionToGoogleDrive = exports.syncSubmissionToWebhook = exports.syncPrecisionDiagnosticToGoogleDrive = exports.syncPrecisionScreeningToGoogleDrive = exports.syncConsentToGoogleDrive = void 0;
 const firestore_1 = require("firebase-functions/v2/firestore");
+const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
 const params_1 = require("firebase-functions/params");
+const patientMatch_1 = require("./patientMatch");
+const geminiServer = require("./geminiServer");
 const admin = require("firebase-admin");
 const googleapis_1 = require("googleapis");
 admin.initializeApp();
+const geminiApiKey = (0, params_1.defineSecret)("GEMINI_API_KEY");
 const COMPLETED_FORMS_FOLDER_NAME = "completed forms";
 const driveFolderId = (0, params_1.defineString)("DRIVE_FOLDER_ID", {
     description: "Google Drive folder ID for patient directory root; JSON files go in a 'completed forms' subfolder",
@@ -358,5 +362,90 @@ exports.syncFormSubmissionToGoogleDrive = (0, firestore_1.onDocumentCreated)("fo
         });
         throw err;
     }
+});
+/** Gemini API proxy — key stored in Secret Manager; client never sees the key in production builds. */
+exports.geminiProxy = (0, https_1.onCall)({ secrets: [geminiApiKey], region: "us-central1" }, async (request) => {
+    var _a, _b, _c;
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "Sign in required");
+    }
+    const key = geminiApiKey.value();
+    if (!key) {
+        throw new https_1.HttpsError("failed-precondition", "GEMINI_API_KEY secret not set for functions");
+    }
+    const data = request.data;
+    const action = data.action;
+    try {
+        switch (action) {
+            case "generateForm":
+                return {
+                    result: await geminiServer.geminiGenerateForm(key, String((_a = data.prompt) !== null && _a !== void 0 ? _a : "")),
+                };
+            case "chat":
+                return { text: await geminiServer.geminiChat(key, data.messages || []) };
+            case "transcribe":
+                return { text: await geminiServer.geminiTranscribe(key, String((_b = data.base64Audio) !== null && _b !== void 0 ? _b : "")) };
+            case "tts":
+                return { audioBase64: await geminiServer.geminiTts(key, String((_c = data.text) !== null && _c !== void 0 ? _c : "")) };
+            default:
+                throw new https_1.HttpsError("invalid-argument", "Unknown Gemini action");
+        }
+    }
+    catch (e) {
+        if (e instanceof https_1.HttpsError)
+            throw e;
+        firebase_functions_1.logger.error("geminiProxy error", e);
+        const msg = e instanceof Error ? e.message : "Gemini error";
+        throw new https_1.HttpsError("internal", msg);
+    }
+});
+/**
+ * Returns only directory rows that match the signed-in user (no full directory to the client).
+ * Reads payload from settings/patientDirectory.payloadJson (managed via Console or seed script).
+ */
+exports.getPatientPortalMatches = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    var _a, _b;
+    if (!((_a = request.auth) === null || _a === void 0 ? void 0 : _a.uid)) {
+        throw new https_1.HttpsError("unauthenticated", "Sign in required");
+    }
+    const uid = request.auth.uid;
+    const snap = await admin.firestore().doc("settings/patientDirectory").get();
+    if (!snap.exists) {
+        return { matches: [], generatedAt: null, source: "none" };
+    }
+    const docData = snap.data();
+    const raw = docData.payloadJson;
+    if (!raw) {
+        return { matches: [], generatedAt: null, source: "empty" };
+    }
+    let payload;
+    try {
+        payload = JSON.parse(raw);
+    }
+    catch (_c) {
+        return { matches: [], generatedAt: null, source: "invalid" };
+    }
+    const profiles = (payload.profiles || []);
+    const consentSnap = await admin
+        .firestore()
+        .collection("consentSubmissions")
+        .where("submittedByUid", "==", uid)
+        .get();
+    const consentFullNames = [];
+    const consentEmails = [];
+    for (const d of consentSnap.docs) {
+        const p = d.data().patient;
+        if (p === null || p === void 0 ? void 0 : p.fullName)
+            consentFullNames.push(String(p.fullName));
+        if (p === null || p === void 0 ? void 0 : p.email)
+            consentEmails.push(String(p.email));
+    }
+    const userRecord = await admin.auth().getUser(uid);
+    const matches = (0, patientMatch_1.findMatchingDirectoryProfilesServer)(userRecord.email || undefined, userRecord.displayName || undefined, userRecord.phoneNumber || undefined, profiles, { consentFullNames, consentEmails });
+    return {
+        matches,
+        generatedAt: (_b = payload.generatedAt) !== null && _b !== void 0 ? _b : null,
+        source: "firestore",
+    };
 });
 //# sourceMappingURL=index.js.map

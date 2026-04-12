@@ -2,8 +2,9 @@
  * Consent Submissions – view submitted Sally Health consent forms with document previews.
  */
 import React, { useState, useEffect } from 'react';
-import { db, collection, query, orderBy, onSnapshot } from '../firebase';
+import { db, collection, query, orderBy, onSnapshot, where } from '../firebase';
 import { useAuth } from '../AuthContext';
+import { isAdminUser } from '../utils/isAdminUser';
 import Navbar from '../components/Navbar';
 import { Loader2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
@@ -32,17 +33,21 @@ interface ConsentSubmission {
 }
 
 const ConsentSubmissions: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [submissions, setSubmissions] = useState<ConsentSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    const q = query(
-      collection(db, 'consentSubmissions'),
-      orderBy('submittedAt', 'desc')
-    );
+    const admin = isAdminUser(user.email ?? null, profile);
+    const q = admin
+      ? query(collection(db, 'consentSubmissions'), orderBy('submittedAt', 'desc'))
+      : query(
+          collection(db, 'consentSubmissions'),
+          where('submittedByUid', '==', user.uid),
+          orderBy('submittedAt', 'desc')
+        );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -52,7 +57,7 @@ const ConsentSubmissions: React.FC = () => {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [user, profile]);
 
   if (!user) {
     return (
@@ -86,7 +91,10 @@ const ConsentSubmissions: React.FC = () => {
           <div className="space-y-4">
             {submissions.map((sub) => {
               const isExpanded = expandedId === sub.id;
-              const p = sub.patient || {};
+              const p = (sub.patient ?? {
+                fullName: 'Unknown',
+                email: '',
+              }) as ConsentSubmission['patient'];
               return (
                 <div
                   key={sub.id}

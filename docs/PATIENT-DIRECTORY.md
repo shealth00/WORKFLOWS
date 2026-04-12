@@ -39,6 +39,16 @@ Staff-only route: **`/patient-directory`**. Profiles are served as static JSON u
 
 4. If **`profiles.json`** is missing, the app falls back to **`profiles.demo.json`** (synthetic demo data only).
 
+### Staff directory in Firestore (no public `profiles.json`)
+
+Production staff views load directory data from **`settings/patientDirectory`** in Firestore (field **`payloadJson`**: string containing the same JSON object as `profiles.json`). Only users with **`users/{uid}.role == 'admin'`** can read this document; it is not world-readable like a static Hosting file.
+
+1. Run `npm run generate:patient-profiles` locally (outputs `public/patient-directory/profiles.json`).
+2. In Firebase Console → Firestore → create document **`settings` / `patientDirectory`** with field **`payloadJson`** (type string) — paste the entire file contents.
+3. Deploy Firestore rules so `settings/patientDirectory` is enforced (included in repo rules).
+
+**Patient Portal** does not download the full directory: it calls the **`getPatientPortalMatches`** Cloud Function, which returns only rows that match the signed-in user.
+
 ## Patient Portal
 
 **Patient Portal** (`/patient-portal`) loads the same JSON but only **shows rows that match** the signed-in user:

@@ -6,8 +6,11 @@ import {
   clearBrowserImportedDirectory,
   loadBrowserImportedDirectory,
   saveBrowserImportedDirectory,
-  fetchServerPatientDirectoryPayload,
+  fetchPatientDirectoryPayload,
 } from '../utils/patientDirectoryBrowserImport';
+import { useAuth } from '../AuthContext';
+import { db } from '../firebase';
+import { isAdminUser } from '../utils/isAdminUser';
 import { PATIENT_DIRECTORY_CSV_SAMPLE, patientProfilesFromCsv } from '../utils/patientCsv';
 
 function ProfileList({
@@ -79,6 +82,8 @@ export interface PatientDirectoryPanelProps {
  * Patient directory list, CSV import, and profile detail — shared by `/patient-directory` and admin Workspace tab.
  */
 export default function PatientDirectoryPanel({ profileId, listPath, profilePath, compact }: PatientDirectoryPanelProps) {
+  const { user, profile: userProfile } = useAuth();
+  const isStaffAdmin = isAdminUser(user?.email ?? null, userProfile);
   const [payload, setPayload] = useState<PatientProfilesPayload | null>(null);
   const [usingDemo, setUsingDemo] = useState(false);
   const [usingBrowserCsv, setUsingBrowserCsv] = useState(false);
@@ -102,7 +107,10 @@ export default function PatientDirectoryPanel({ profileId, listPath, profilePath
     }
     void (async () => {
       try {
-        const { payload: data, usingDemo: demo } = await fetchServerPatientDirectoryPayload();
+        const { payload: data, usingDemo: demo } = await fetchPatientDirectoryPayload({
+          db,
+          isStaffAdmin,
+        });
         setPayload(data);
         setUsingDemo(demo);
         setUsingBrowserCsv(false);
@@ -117,8 +125,8 @@ export default function PatientDirectoryPanel({ profileId, listPath, profilePath
 
   useEffect(() => {
     reloadDirectory();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load only
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when admin/profile resolves
+  }, [isStaffAdmin, user?.uid]);
 
   const handleCsvSelected = async (file: File | undefined) => {
     if (!file) return;
@@ -158,7 +166,7 @@ export default function PatientDirectoryPanel({ profileId, listPath, profilePath
   };
 
   const profiles = payload?.profiles ?? [];
-  const profile = profileId ? profiles.find((p) => p.id === profileId) : null;
+  const detailProfile = profileId ? profiles.find((p) => p.id === profileId) : null;
 
   if (loading) {
     return (
@@ -267,40 +275,40 @@ export default function PatientDirectoryPanel({ profileId, listPath, profilePath
             <ArrowLeft className="w-4 h-4" />
             Back to directory
           </Link>
-          {!profile ? (
+          {!detailProfile ? (
             <p className="text-slate-600">Profile not found.</p>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
               <div className="px-6 py-5 border-b border-slate-100">
-                <h2 className="text-xl font-semibold text-slate-900">{profile.name}</h2>
-                <p className="text-sm text-slate-500 mt-1">ID: {profile.id}</p>
+                <h2 className="text-xl font-semibold text-slate-900">{detailProfile.name}</h2>
+                <p className="text-sm text-slate-500 mt-1">ID: {detailProfile.id}</p>
               </div>
               <dl className="px-6 py-5 space-y-4 text-sm">
-                {profile.email && (
+                {detailProfile.email && (
                   <div>
                     <dt className="text-slate-500 font-medium">Email</dt>
-                    <dd className="text-slate-900">{profile.email}</dd>
+                    <dd className="text-slate-900">{detailProfile.email}</dd>
                   </div>
                 )}
                 <div>
                   <dt className="text-slate-500 font-medium">DOB</dt>
-                  <dd className="text-slate-900">{profile.dob || '—'}</dd>
+                  <dd className="text-slate-900">{detailProfile.dob || '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-slate-500 font-medium">MRN / insurance</dt>
-                  <dd className="text-slate-900">{profile.mrn || '—'}</dd>
+                  <dd className="text-slate-900">{detailProfile.mrn || '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-slate-500 font-medium">Phone</dt>
-                  <dd className="text-slate-900">{profile.phone || '—'}</dd>
+                  <dd className="text-slate-900">{detailProfile.phone || '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-slate-500 font-medium">Address</dt>
-                  <dd className="text-slate-900 whitespace-pre-wrap">{profile.address || '—'}</dd>
+                  <dd className="text-slate-900 whitespace-pre-wrap">{detailProfile.address || '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-slate-500 font-medium">Recent visit</dt>
-                  <dd className="text-slate-900">{profile.recentVisit || '—'}</dd>
+                  <dd className="text-slate-900">{detailProfile.recentVisit || '—'}</dd>
                 </div>
               </dl>
             </div>
