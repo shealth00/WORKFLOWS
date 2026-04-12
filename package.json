@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
+    "preflight": "node scripts/preflight.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "cap:sync": "npm run build:android && npx cap sync android",
