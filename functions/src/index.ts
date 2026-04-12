@@ -15,14 +15,17 @@
  *    Or add DRIVE_FOLDER_ID to functions/.env.PROJECT_ID
  */
 
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import {
+  onDocumentCreated,
+  type FirestoreEvent,
+} from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { defineSecret, defineString } from "firebase-functions/params";
 import { findMatchingDirectoryProfilesServer, type PatientProfileLite } from "./patientMatch";
 import * as geminiServer from "./geminiServer";
 import * as admin from "firebase-admin";
-import type { DocumentReference } from "firebase-admin/firestore";
+import type { DocumentReference, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { google } from "googleapis";
 import type { drive_v3 } from "googleapis";
 
@@ -142,7 +145,7 @@ async function uploadJsonToCompletedForms(params: {
  */
 export const syncConsentToGoogleDrive = onDocumentCreated(
   "consentSubmissions/{docId}",
-  async (event) => {
+  async (event: FirestoreEvent<QueryDocumentSnapshot | undefined>) => {
     const snap = event.data;
     if (!snap) return null;
     const docId = event.params.docId;
@@ -200,7 +203,7 @@ export const syncConsentToGoogleDrive = onDocumentCreated(
  */
 export const syncPrecisionScreeningToGoogleDrive = onDocumentCreated(
   "precisionScreenings/{docId}",
-  async (event) => {
+  async (event: FirestoreEvent<QueryDocumentSnapshot | undefined>) => {
     const snap = event.data;
     if (!snap) return null;
     const docId = event.params.docId;
@@ -249,7 +252,7 @@ export const syncPrecisionScreeningToGoogleDrive = onDocumentCreated(
  */
 export const syncPrecisionDiagnosticToGoogleDrive = onDocumentCreated(
   "precisionDiagnosticScreenings/{docId}",
-  async (event) => {
+  async (event: FirestoreEvent<QueryDocumentSnapshot | undefined>) => {
     const snap = event.data;
     if (!snap) return null;
     const docId = event.params.docId;
@@ -298,7 +301,7 @@ export const syncPrecisionDiagnosticToGoogleDrive = onDocumentCreated(
  */
 export const syncSubmissionToWebhook = onDocumentCreated(
   "forms/{formId}/submissions/{submissionId}",
-  async (event) => {
+  async (event: FirestoreEvent<QueryDocumentSnapshot | undefined>) => {
     const snap = event.data;
     if (!snap) return null;
     const { formId, submissionId } = event.params;
@@ -348,7 +351,7 @@ export const syncSubmissionToWebhook = onDocumentCreated(
  */
 export const syncFormSubmissionToGoogleDrive = onDocumentCreated(
   "forms/{formId}/submissions/{submissionId}",
-  async (event) => {
+  async (event: FirestoreEvent<QueryDocumentSnapshot | undefined>) => {
     const snap = event.data;
     if (!snap) return null;
     const { formId, submissionId } = event.params;
