@@ -2,7 +2,8 @@
  * Firebase initialization and exports.
  *
  * Exports: auth, db, storage, googleProvider, and Firestore/Storage helpers.
- * Collections: users, forms, forms/{id}/submissions, consentSubmissions,
+ * Collections: users, forms, forms/{id}/submissions (Drive sync when configured),
+ * consentSubmissions,
  * precisionScreenings, precisionDiagnosticScreenings.
  * Storage: consent-uploads/{uid}/..., precision-diagnostic/{uid}/...
  */
@@ -10,6 +11,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, getDoc, getDocs, setDoc, collection, addDoc, updateDoc, deleteDoc, query, where, limit, onSnapshot, orderBy, serverTimestamp, getDocFromServer, getCountFromServer } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -18,6 +20,7 @@ setPersistence(auth, browserLocalPersistence).catch(() => {});
 const dbId = firebaseConfig.firestoreDatabaseId;
 export const db = dbId && dbId !== '(default)' ? getFirestore(app, dbId) : getFirestore(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app, 'us-central1');
 export const googleProvider = new GoogleAuthProvider();
 
 export { 
@@ -46,7 +49,9 @@ export {
   getCountFromServer,
   ref,
   uploadBytes,
-  getDownloadURL
+  getDownloadURL,
+  getFunctions,
+  httpsCallable
 };
 
 // Connection test

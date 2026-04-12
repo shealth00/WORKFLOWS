@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { db, doc, getDoc, addDoc, collection, serverTimestamp } from '../firebase';
+import { auth, db, doc, getDoc, addDoc, collection, serverTimestamp } from '../firebase';
 import { FormDefinition } from '../types';
 import { Loader2, CheckCircle2, Mic, MicOff, Volume2 } from 'lucide-react';
 import { transcribeAudio, generateSpeech } from '../geminiService';
@@ -71,8 +71,9 @@ const ViewForm: React.FC = () => {
       urinarySymptoms: sec3.includes('Urinary symptoms (burning, frequency)'),
       giSymptoms: sec3.includes('GI symptoms (diarrhea, nausea)'),
 
-      controlledMeds: sec4.includes('On controlled medications') || sec4.includes('Concern for medication adherence'),
+      controlledMeds: sec4.includes('On controlled medications'),
       painManagement: sec4.includes('Pain management program'),
+      medicationAdherenceConcern: sec4.includes('Concern for medication adherence'),
 
       cancerFamilyHistory: sec5.includes('Cancer in family'),
       heartDiseaseFamilyHistory: sec5.includes('Heart disease'),
@@ -92,11 +93,14 @@ const ViewForm: React.FC = () => {
     setSubmitting(true);
     try {
       const precisionDiagnosticResults = buildPrecisionDiagnosticResultsIfApplicable();
+      const uid = auth.currentUser?.uid;
       await addDoc(collection(db, 'forms', id, 'submissions'), {
         formId: id,
         data: formData,
         results: precisionDiagnosticResults,
-        submittedAt: serverTimestamp()
+        submittedAt: serverTimestamp(),
+        sendToGoogleDrive: true,
+        ...(uid ? { submittedByUid: uid } : {}),
       });
       setSubmitted(true);
     } catch (error) {

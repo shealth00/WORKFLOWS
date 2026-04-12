@@ -29,12 +29,16 @@ export interface Submission {
   submitterId?: string;
 }
 
+export type UserRole = 'staff' | 'admin';
+
 export interface UserProfile {
   uid: string;
   email: string;
   displayName?: string;
   photoURL?: string;
   createdAt: any;
+  /** Set only via Firebase Console or trusted scripts — clients cannot change this field (see firestore.rules). */
+  role?: UserRole;
 }
 
 export type PrecisionScreeningDecision = 'AUTO_ORDER' | 'PROVIDER_REVIEW' | 'NO_TEST';
@@ -68,9 +72,11 @@ export interface PrecisionScreeningResponses {
   urinarySymptoms: boolean;
   giSymptoms: boolean;
 
-  // Section 4: Medication Monitoring
+  // Section 4: Medication Monitoring / toxicology triggers
   controlledMeds: boolean;
   painManagement: boolean;
+  /** Concern for medication adherence (same-day UDS pathway per screening spec). */
+  medicationAdherenceConcern: boolean;
 
   // Section 5: Family History
   cancerFamilyHistory: boolean;

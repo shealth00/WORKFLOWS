@@ -35,6 +35,15 @@ service cloud.firestore {
              data.email is string;
     }
 
+    function isValidUserCreate(data) {
+      return isValidUser(data) && !data.keys().hasAny(['role']);
+    }
+
+    // Clients cannot add or change `role`; set `admin` in Firebase Console only.
+    function userRoleImmutable() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+    }
+
     function isValidForm(data) {
       return data.keys().hasAll(['title', 'ownerId', 'fields']) &&
              data.title is string && data.title.size() < 200 &&
@@ -48,10 +57,17 @@ service cloud.firestore {
              data.data is map;
     }
 
+    function isStaffAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // Rules
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create, update: if isOwner(userId) && isValidUser(request.resource.data);
+      allow create: if isOwner(userId) && isValidUserCreate(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && userRoleImmutable();
 
       match /integrations/{integrationId} {
         allow read, write: if isOwner(userId);
@@ -73,20 +89,26 @@ service cloud.firestore {
       allow read: if true;
     }
 
+    // Staff-only patient directory payload (single doc; writes via Admin SDK / Console only)
+    match /settings/{docId} {
+      allow read: if docId == 'patientDirectory' && isStaffAdmin();
+      allow write: if false;
+    }
+
     // Precision screening submissions (wizard + diagnostic)
     match /precisionScreenings/{docId} {
       allow create: if isAuthenticated() && request.resource.data.createdByUid == request.auth.uid;
-      allow read: if isAuthenticated();
+      allow read: if resource.data.createdByUid == request.auth.uid || isStaffAdmin();
     }
     match /precisionDiagnosticScreenings/{docId} {
       allow create: if isAuthenticated() && request.resource.data.createdByUid == request.auth.uid;
-      allow read: if isAuthenticated();
+      allow read: if resource.data.createdByUid == request.auth.uid || isStaffAdmin();
     }
 
     // Consent form submissions (Sally Health)
     match /consentSubmissions/{docId} {
       allow create: if isAuthenticated() && request.resource.data.submittedByUid == request.auth.uid;
-      allow read: if isAuthenticated();
+      allow read: if resource.data.submittedByUid == request.auth.uid || isStaffAdmin();
     }
   }
 }

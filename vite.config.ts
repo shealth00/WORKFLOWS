@@ -7,6 +7,8 @@ import {defineConfig, loadEnv} from 'vite';
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   const isCapacitor = env.VITE_APP_BASE === './';
+  /** Production builds must not embed GEMINI_API_KEY; use Cloud Function geminiProxy instead. */
+  const geminiKeyForClient = mode === 'development' ? (env.GEMINI_API_KEY || '') : '';
   return {
     base: isCapacitor ? './' : '/',
     plugins: [react(), tailwindcss()],
@@ -24,7 +26,7 @@ export default defineConfig(({mode}) => {
       chunkSizeWarningLimit: 600,
     },
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'process.env.GEMINI_API_KEY': JSON.stringify(geminiKeyForClient),
     },
     resolve: {
       alias: {

@@ -31,3 +31,16 @@ When a consent form is submitted, a JSON copy is automatically uploaded to a Goo
 ## Output
 
 Each submission creates a file: `consent-{docId}-{date}.json` in your Drive folder.
+
+## Gemini proxy (`geminiProxy` callable)
+
+Production web builds do not embed a Gemini API key. Set the secret once per project, then deploy functions:
+
+```bash
+# From repo root; use your Gemini API key value
+printf '%s' 'YOUR_GEMINI_API_KEY' | firebase functions:secrets:set GEMINI_API_KEY --project YOUR_PROJECT_ID
+cd functions && npm install && npm run build
+firebase deploy --only functions:geminiProxy,getPatientPortalMatches --project YOUR_PROJECT_ID
+```
+
+CI deploys functions when using `.github/workflows/firebase-hosting.yml` if `FIREBASE_TOKEN` can deploy Cloud Functions. Ensure the **`GEMINI_API_KEY`** secret exists in Google Cloud Secret Manager for the project (created by the command above) before merging.

@@ -4,13 +4,14 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { db, collection, query, where, orderBy, onSnapshot } from '../firebase';
+import { db, collection, query, where, orderBy, onSnapshot, httpsCallable, functions } from '../firebase';
 import { useAuth } from '../AuthContext';
 import Navbar from '../components/Navbar';
 import { Loader2, FileText, ClipboardCheck, ChevronRight, UserCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import type { PatientProfile, PatientProfilesPayload } from '../types/patientDirectory';
 import { findMatchingDirectoryProfiles } from '../utils/patientProfileMatch';
+import { loadBrowserImportedDirectory } from '../utils/patientDirectoryBrowserImport';
 
 interface ConsentSubmission {
   id: string;
@@ -31,8 +32,11 @@ const PatientPortal: React.FC = () => {
   const [precisionScreenings, setPrecisionScreenings] = useState<PrecisionRecord[]>([]);
   const [precisionDiagnostics, setPrecisionDiagnostics] = useState<PrecisionRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  /** Full list only when using browser CSV import; otherwise matches come from Cloud Function. */
   const [directoryProfiles, setDirectoryProfiles] = useState<PatientProfile[]>([]);
+  const [serverMatches, setServerMatches] = useState<PatientProfile[]>([]);
   const [directoryMeta, setDirectoryMeta] = useState<{ generatedAt?: string } | null>(null);
+  const [directoryReady, setDirectoryReady] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -79,18 +83,33 @@ const PatientPortal: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
+    setDirectoryReady(false);
     (async () => {
-      const load = async (path: string) => {
-        const res = await fetch(path, { cache: 'no-store' });
-        if (!res.ok) return null;
-        return (await res.json()) as PatientProfilesPayload;
-      };
-      const primary = await load('/patient-directory/profiles.json');
-      const data =
-        primary?.profiles?.length ? primary : (await load('/patient-directory/profiles.demo.json'));
-      if (!cancelled && data?.profiles) {
-        setDirectoryProfiles(data.profiles);
-        setDirectoryMeta({ generatedAt: data.generatedAt });
+      const imported = loadBrowserImportedDirectory();
+      if (imported?.profiles?.length) {
+        if (!cancelled) {
+          setDirectoryProfiles(imported.profiles);
+          setServerMatches([]);
+          setDirectoryMeta({ generatedAt: imported.generatedAt });
+          setDirectoryReady(true);
+        }
+        return;
+      }
+      setDirectoryProfiles([]);
+      try {
+        const fn = httpsCallable(functions, 'getPatientPortalMatches');
+        const res = await fn({});
+        const data = res.data as { matches?: PatientProfile[]; generatedAt?: string | null };
+        if (!cancelled) {
+          setServerMatches(data.matches ?? []);
+          setDirectoryMeta({ generatedAt: data.generatedAt ?? undefined });
+        }
+      } catch {
+        if (!cancelled) {
+          setServerMatches([]);
+        }
+      } finally {
+        if (!cancelled) setDirectoryReady(true);
       }
     })();
     return () => {
@@ -99,18 +118,21 @@ const PatientPortal: React.FC = () => {
   }, [user]);
 
   const matchedDirectoryProfiles = useMemo(() => {
-    if (!user || directoryProfiles.length === 0) return [];
-    const consentFullNames = consentSubmissions
-      .map((s) => s.patient?.fullName?.trim())
-      .filter((n): n is string => Boolean(n));
-    const consentEmails = consentSubmissions
-      .map((s) => s.patient?.email?.trim())
-      .filter((e): e is string => Boolean(e));
-    return findMatchingDirectoryProfiles(user, directoryProfiles, {
-      consentFullNames,
-      consentEmails,
-    });
-  }, [user, directoryProfiles, consentSubmissions]);
+    if (!user) return [];
+    if (directoryProfiles.length > 0) {
+      const consentFullNames = consentSubmissions
+        .map((s) => s.patient?.fullName?.trim())
+        .filter((n): n is string => Boolean(n));
+      const consentEmails = consentSubmissions
+        .map((s) => s.patient?.email?.trim())
+        .filter((e): e is string => Boolean(e));
+      return findMatchingDirectoryProfiles(user, directoryProfiles, {
+        consentFullNames,
+        consentEmails,
+      });
+    }
+    return serverMatches;
+  }, [user, directoryProfiles, consentSubmissions, serverMatches]);
 
   if (!user) {
     return (
@@ -177,7 +199,7 @@ const PatientPortal: React.FC = () => {
             </div>
 
             {/* Directory profiles matched to this account */}
-            {directoryProfiles.length > 0 && (
+            {directoryReady && (
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100">
                   <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
