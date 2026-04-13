@@ -1,12 +1,12 @@
 # Patient Directory (CSV merge or `patient upload` spreadsheet)
 
-Staff-only route: **`/patient-directory`**. Profiles are served as static JSON under **`/patient-directory/profiles.json`** after build (and admin workspace **Patient directory** tab uses the same data).
+Staff-only route: **`/patient-directory`**. In production, staff data comes from **Firestore `settings/patientDirectory`** (see below); **`npm run generate:patient-profiles`** only writes **`public/patient-directory/profiles.json` locally** (gitignored) for upload or dev—never rely on that file as a public Hosting URL for real PHI.
 
 ## Workflow
 
 **Option A — EMR / bulk CSV (preferred when you have facility exports)**
 
-1. Place one or more **`*.csv`** files in **`Patient Directory/`** (repo root).  
+1. Ensure folders exist: **`npm run ensure:patient-folders`**. Place one or more **`*.csv`** files in **`Patient Directory/`** (repo root; contents are gitignored).  
    Supported format: headers include **FirstName**, **LastName** (e.g. exports with **RecordId**, **DateOfBirth(mm/dd/yyyy)**, **Email ID**, phones, **Address Line1**, **City**, **State**, **Zip Code**, **Date Of Joining**). All CSVs in that folder are merged into one list.
 
 2. Generate JSON:
@@ -51,7 +51,7 @@ Production staff views load directory data from **`settings/patientDirectory`** 
 
 ## Patient Portal
 
-**Patient Portal** (`/patient-portal`) loads the same JSON but only **shows rows that match** the signed-in user:
+**Patient Portal** (`/patient-portal`) calls **`getPatientPortalMatches`** (or browser-imported directory data) and only **shows rows that match** the signed-in user:
 
 - Profile **email** equals Firebase **user email** (add an **Email** column to the spreadsheet when possible).
 - **Display name** equals **Patient Name** (case/spacing normalized).
@@ -62,9 +62,10 @@ No link to the full staff directory is shown to patients—only their matched ca
 
 ## Privacy / compliance
 
-- **`patient upload/`** and **`public/patient-directory/profiles.json`** are **gitignored** so PHI is not committed by default.  
-- Directory is behind **Firebase Auth** (same as other staff routes).  
-- Treat static JSON on Hosting as sensitive: restrict access, use BAA-compliant hosting, and follow HIPAA policies. For stronger controls, move profiles to **Firestore** with tightened rules instead of public static files.
+- **`patient upload/*`**, **`Patient Directory/*`**, and **`public/patient-directory/profiles.json`** are **gitignored** (only empty **`.gitkeep`** files keep folders in git). Do not commit facility CSVs or generated JSON.  
+- If PHI ever entered git history on a shared remote, coordinate **history cleanup** (e.g. BFG Repo-Cleaner) with compliance.  
+- Staff directory in production uses **Firestore `settings/patientDirectory`** (admin-read only per rules), not a world-readable Hosting static file.  
+- Directory UI is behind **Firebase Auth**; Patient Portal uses **`getPatientPortalMatches`** only.
 
 ## Related
 

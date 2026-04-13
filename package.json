@@ -18,7 +18,9 @@
     "cap:sync": "npm run build:android && npx cap sync android",
     "cap:open:android": "npx cap open android",
     "cap:run:android": "npm run cap:sync && npx cap run android",
-    "generate:patient-profiles": "node scripts/generate-patient-profiles.mjs"
+    "generate:patient-profiles": "node scripts/generate-patient-profiles.mjs",
+    "ensure:patient-folders": "node scripts/ensure-patient-folders.mjs",
+    "project:map": "node scripts/generate-project-map-and-zip.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",
