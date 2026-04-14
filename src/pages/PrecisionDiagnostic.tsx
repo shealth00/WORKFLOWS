@@ -22,6 +22,10 @@ type Patient = {
   insuranceAdvantageCardUrlBack: string;
   idCardUrlFront: string;
   idCardUrlBack: string;
+  driverLicenseUrlFront: string;
+  driverLicenseUrlBack: string;
+  stateIdUrlFront: string;
+  stateIdUrlBack: string;
 };
 
 const DEFAULT_PATIENT: Patient = {
@@ -40,6 +44,10 @@ const DEFAULT_PATIENT: Patient = {
   insuranceAdvantageCardUrlBack: '',
   idCardUrlFront: '',
   idCardUrlBack: '',
+  driverLicenseUrlFront: '',
+  driverLicenseUrlBack: '',
+  stateIdUrlFront: '',
+  stateIdUrlBack: '',
 };
 
 const DEFAULT_RESPONSES: PrecisionScreeningResponses = {
@@ -76,6 +84,42 @@ export default function PrecisionDiagnostic() {
   const { user } = useAuth();
   const [patient, setPatient] = useState(DEFAULT_PATIENT);
   const [responses, setResponses] = useState(DEFAULT_RESPONSES);
+  const [respiratoryIntake, setRespiratoryIntake] = useState({
+    fever: false,
+    cough: false,
+    shortnessOfBreath: false,
+    congestion: false,
+    fatigue: false,
+    lossOfTasteSmell: false,
+    closeContact: false,
+    compromisedImmune: false,
+  });
+  const [utiIntake, setUtiIntake] = useState({
+    dysuria: false,
+    urgency: false,
+    pelvicPain: false,
+    catheter: false,
+  });
+  const [stiIntake, setStiIntake] = useState({
+    discharge: false,
+    painUrination: false,
+    painIntercourse: false,
+    bumpsSores: false,
+    itching: false,
+    lowerAbdominalPain: false,
+    newPartner: false,
+    unprotected: false,
+    pastSTI: false,
+    partnerDiagnosed: false,
+  });
+  const [nailFungusIntake, setNailFungusIntake] = useState({
+    discoloration: false,
+    brittleness: false,
+    distortion: false,
+    debris: false,
+    athleteFoot: false,
+    communalShower: false,
+  });
   const [consented, setConsented] = useState(false);
   const [signatureTyped, setSignatureTyped] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -155,6 +199,18 @@ export default function PrecisionDiagnostic() {
     setResponses((r) => ({ ...r, [key]: !r[key] }));
   };
 
+  const hasAnyTrue = (obj: Record<string, boolean>) => Object.values(obj).some(Boolean);
+
+  useEffect(() => {
+    setResponses((r) => ({
+      ...r,
+      fever: respiratoryIntake.fever,
+      coughCongestion: respiratoryIntake.cough || respiratoryIntake.congestion,
+      stiConcerns: hasAnyTrue(stiIntake),
+      urinarySymptoms: hasAnyTrue(utiIntake),
+    }));
+  }, [respiratoryIntake, stiIntake, utiIntake]);
+
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
 
   const handleFileUpload = async (file: File, kind: string) => {
@@ -172,6 +228,10 @@ export default function PrecisionDiagnostic() {
         'insurance-advantage-back': 'insuranceAdvantageCardUrlBack',
         'id-front': 'idCardUrlFront',
         'id-back': 'idCardUrlBack',
+        'driver-license-front': 'driverLicenseUrlFront',
+        'driver-license-back': 'driverLicenseUrlBack',
+        'state-id-front': 'stateIdUrlFront',
+        'state-id-back': 'stateIdUrlBack',
       };
       const key = fieldMap[kind];
       if (key) setPatient((p) => ({ ...p, [key]: url }));
@@ -204,6 +264,10 @@ export default function PrecisionDiagnostic() {
         sendToGoogleDrive: true,
         patient,
         responses,
+        respiratory: respiratoryIntake,
+        uti: utiIntake,
+        sti: stiIntake,
+        nailFungus: nailFungusIntake,
         results,
         consent: {
           consented: true,
@@ -235,6 +299,26 @@ export default function PrecisionDiagnostic() {
         type="checkbox"
         checked={responses[id]}
         onChange={() => toggle(id)}
+        className="w-4 h-4 text-orange-600 border-black/20 rounded focus:ring-orange-500"
+      />
+      <span className="text-sm">{label}</span>
+    </label>
+  );
+
+  const IntakeCheck = ({
+    checked,
+    onChange,
+    label,
+  }: {
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    label: string;
+  }) => (
+    <label className="flex items-center gap-3 py-1.5">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
         className="w-4 h-4 text-orange-600 border-black/20 rounded focus:ring-orange-500"
       />
       <span className="text-sm">{label}</span>
@@ -363,13 +447,23 @@ export default function PrecisionDiagnostic() {
                     {patient.insuranceTraditionalCardUrlBack && <p className="mt-1 text-xs text-emerald-600">Back uploaded.</p>}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-2">Medicare (Advantage)</p>
-                    <label className="block text-xs text-slate-500 mb-1">State ID / driver license – front</label>
-                    <input type="file" accept="image/*" disabled={!!uploading['id-front']} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'id-front'); }} className="block w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50" />
-                    {patient.idCardUrlFront && <p className="mt-1 text-xs text-emerald-600">Front uploaded.</p>}
-                    <label className="block text-xs text-slate-500 mb-1 mt-2">State ID / driver license – back</label>
-                    <input type="file" accept="image/*" disabled={!!uploading['id-back']} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'id-back'); }} className="block w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50" />
-                    {patient.idCardUrlBack && <p className="mt-1 text-xs text-emerald-600">Back uploaded.</p>}
+                    <p className="text-sm font-medium text-slate-700 mb-2">Government ID documents</p>
+
+                    <label className="block text-xs text-slate-500 mb-1">Driver license – front</label>
+                    <input type="file" accept="image/*" disabled={!!uploading['driver-license-front']} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'driver-license-front'); }} className="block w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50" />
+                    {patient.driverLicenseUrlFront && <p className="mt-1 text-xs text-emerald-600">Driver license front uploaded.</p>}
+
+                    <label className="block text-xs text-slate-500 mb-1 mt-2">Driver license – back</label>
+                    <input type="file" accept="image/*" disabled={!!uploading['driver-license-back']} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'driver-license-back'); }} className="block w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50" />
+                    {patient.driverLicenseUrlBack && <p className="mt-1 text-xs text-emerald-600">Driver license back uploaded.</p>}
+
+                    <label className="block text-xs text-slate-500 mb-1 mt-3">State ID – front</label>
+                    <input type="file" accept="image/*" disabled={!!uploading['state-id-front']} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'state-id-front'); }} className="block w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50" />
+                    {patient.stateIdUrlFront && <p className="mt-1 text-xs text-emerald-600">State ID front uploaded.</p>}
+
+                    <label className="block text-xs text-slate-500 mb-1 mt-2">State ID – back</label>
+                    <input type="file" accept="image/*" disabled={!!uploading['state-id-back']} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'state-id-back'); }} className="block w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50" />
+                    {patient.stateIdUrlBack && <p className="mt-1 text-xs text-emerald-600">State ID back uploaded.</p>}
                   </div>
                 </div>
               </section>
@@ -393,12 +487,83 @@ export default function PrecisionDiagnostic() {
               </Section>
 
               <Section title="Section 3: Infectious Symptoms (PCR)">
-                <div className="grid gap-1 sm:grid-cols-2">
-                  <Check id="fever" label="Fever" />
-                  <Check id="coughCongestion" label="Cough / congestion" />
-                  <Check id="stiConcerns" label="STI concerns" />
-                  <Check id="urinarySymptoms" label="Urinary symptoms (burning, frequency)" />
-                  <Check id="giSymptoms" label="GI symptoms (diarrhea, nausea)" />
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-medium text-slate-700 mb-2">Respiratory Panel Screening</h3>
+                    <p className="text-sm text-slate-600 mb-3">
+                      Used to identify candidates for Flu, COVID-19, RSV, and other respiratory pathogen testing.
+                    </p>
+                    <p className="text-sm font-medium text-slate-700 mb-2">Current symptoms (check all that apply)</p>
+                    <div className="grid gap-1 sm:grid-cols-2">
+                      <IntakeCheck checked={respiratoryIntake.fever} onChange={(checked) => setRespiratoryIntake((s) => ({ ...s, fever: checked }))} label="Fever (> 100.4°F/38°C) or chills" />
+                      <IntakeCheck checked={respiratoryIntake.cough} onChange={(checked) => setRespiratoryIntake((s) => ({ ...s, cough: checked }))} label="Cough (new or worsening)" />
+                      <IntakeCheck checked={respiratoryIntake.shortnessOfBreath} onChange={(checked) => setRespiratoryIntake((s) => ({ ...s, shortnessOfBreath: checked }))} label="Shortness of breath or difficulty breathing" />
+                      <IntakeCheck checked={respiratoryIntake.congestion} onChange={(checked) => setRespiratoryIntake((s) => ({ ...s, congestion: checked }))} label="Congestion or runny nose" />
+                      <IntakeCheck checked={respiratoryIntake.fatigue} onChange={(checked) => setRespiratoryIntake((s) => ({ ...s, fatigue: checked }))} label="Fatigue / muscle or body aches" />
+                      <IntakeCheck checked={respiratoryIntake.lossOfTasteSmell} onChange={(checked) => setRespiratoryIntake((s) => ({ ...s, lossOfTasteSmell: checked }))} label="New loss of taste or smell" />
+                    </div>
+                    <p className="text-sm font-medium text-slate-700 mt-3 mb-2">Risk factors & history</p>
+                    <div className="space-y-1">
+                      <IntakeCheck checked={respiratoryIntake.closeContact} onChange={(checked) => setRespiratoryIntake((s) => ({ ...s, closeContact: checked }))} label="Close contact with someone diagnosed with COVID-19, Flu, or RSV in the last 14 days?" />
+                      <IntakeCheck checked={respiratoryIntake.compromisedImmune} onChange={(checked) => setRespiratoryIntake((s) => ({ ...s, compromisedImmune: checked }))} label="Do you have a compromised immune system?" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-medium text-slate-700 mb-2">Urinary Tract Infection (UTI) Screening</h3>
+                    <p className="text-sm text-slate-600 mb-3">Used to identify candidates for Urinalysis and Urine Culture/PCR.</p>
+                    <p className="text-sm font-medium text-slate-700 mb-2">Current symptoms (check all that apply)</p>
+                    <div className="space-y-1">
+                      <IntakeCheck checked={utiIntake.dysuria} onChange={(checked) => setUtiIntake((s) => ({ ...s, dysuria: checked }))} label="Dysuria (burning or pain when urinating)" />
+                      <IntakeCheck checked={utiIntake.urgency} onChange={(checked) => setUtiIntake((s) => ({ ...s, urgency: checked }))} label="Urinary urgency" />
+                      <IntakeCheck checked={utiIntake.pelvicPain} onChange={(checked) => setUtiIntake((s) => ({ ...s, pelvicPain: checked }))} label="Pelvic pain (women) or rectal pain (men)" />
+                    </div>
+                    <p className="text-sm font-medium text-slate-700 mt-3 mb-2">Risk factors</p>
+                    <IntakeCheck checked={utiIntake.catheter} onChange={(checked) => setUtiIntake((s) => ({ ...s, catheter: checked }))} label="Use of a urinary catheter?" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-medium text-slate-700 mb-2">Sexually Transmitted Infection (STI) Screening</h3>
+                    <p className="text-sm text-slate-600 mb-3">Used to identify candidates for Chlamydia, Gonorrhea, Trichomonas, Mycoplasma, etc.</p>
+                    <p className="text-sm font-medium text-slate-700 mb-2">Current symptoms (check all that apply)</p>
+                    <div className="grid gap-1 sm:grid-cols-2">
+                      <IntakeCheck checked={stiIntake.discharge} onChange={(checked) => setStiIntake((s) => ({ ...s, discharge: checked }))} label="Unusual discharge from penis, vagina, or anus" />
+                      <IntakeCheck checked={stiIntake.painUrination} onChange={(checked) => setStiIntake((s) => ({ ...s, painUrination: checked }))} label="Pain or burning during urination" />
+                      <IntakeCheck checked={stiIntake.painIntercourse} onChange={(checked) => setStiIntake((s) => ({ ...s, painIntercourse: checked }))} label="Pain during sexual intercourse" />
+                      <IntakeCheck checked={stiIntake.bumpsSores} onChange={(checked) => setStiIntake((s) => ({ ...s, bumpsSores: checked }))} label="Bumps, blisters, sores, or warts on or around genitals/mouth" />
+                      <IntakeCheck checked={stiIntake.itching} onChange={(checked) => setStiIntake((s) => ({ ...s, itching: checked }))} label="Itching or irritation in the genital area" />
+                      <IntakeCheck checked={stiIntake.lowerAbdominalPain} onChange={(checked) => setStiIntake((s) => ({ ...s, lowerAbdominalPain: checked }))} label="Lower abdominal pain" />
+                    </div>
+                    <p className="text-sm font-medium text-slate-700 mt-3 mb-2">Risk factors (lookback 6–12 months)</p>
+                    <div className="space-y-1">
+                      <IntakeCheck checked={stiIntake.newPartner} onChange={(checked) => setStiIntake((s) => ({ ...s, newPartner: checked }))} label="New sexual partner or multiple partners?" />
+                      <IntakeCheck checked={stiIntake.unprotected} onChange={(checked) => setStiIntake((s) => ({ ...s, unprotected: checked }))} label="Unprotected intercourse (vaginal, anal, or oral)?" />
+                      <IntakeCheck checked={stiIntake.pastSTI} onChange={(checked) => setStiIntake((s) => ({ ...s, pastSTI: checked }))} label="Past history of STIs?" />
+                      <IntakeCheck checked={stiIntake.partnerDiagnosed} onChange={(checked) => setStiIntake((s) => ({ ...s, partnerDiagnosed: checked }))} label="Partner recently diagnosed with an STI?" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-medium text-slate-700 mb-2">Nail Fungus (Onychomycosis) Screening</h3>
+                    <p className="text-sm text-slate-600 mb-3">Used to identify candidates for Fungal Culture or PCR testing.</p>
+                    <p className="text-sm font-medium text-slate-700 mb-2">Visual assessment (check all that apply)</p>
+                    <div className="space-y-1">
+                      <IntakeCheck checked={nailFungusIntake.discoloration} onChange={(checked) => setNailFungusIntake((s) => ({ ...s, discoloration: checked }))} label="Discoloration: nails white, yellow, or brown" />
+                      <IntakeCheck checked={nailFungusIntake.brittleness} onChange={(checked) => setNailFungusIntake((s) => ({ ...s, brittleness: checked }))} label="Brittleness: nails crumbly, ragged, or brittle" />
+                      <IntakeCheck checked={nailFungusIntake.distortion} onChange={(checked) => setNailFungusIntake((s) => ({ ...s, distortion: checked }))} label="Distortion: nails misshapen or lifting from nail bed" />
+                      <IntakeCheck checked={nailFungusIntake.debris} onChange={(checked) => setNailFungusIntake((s) => ({ ...s, debris: checked }))} label="Debris under the nail" />
+                    </div>
+                    <p className="text-sm font-medium text-slate-700 mt-3 mb-2">History</p>
+                    <div className="space-y-1">
+                      <IntakeCheck checked={nailFungusIntake.athleteFoot} onChange={(checked) => setNailFungusIntake((s) => ({ ...s, athleteFoot: checked }))} label="History of Athlete's Foot (Tinea Pedis)?" />
+                      <IntakeCheck checked={nailFungusIntake.communalShower} onChange={(checked) => setNailFungusIntake((s) => ({ ...s, communalShower: checked }))} label="Visited a communal shower/pool or nail salon recently?" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 mb-2">Additional infectious symptoms</p>
+                    <Check id="giSymptoms" label="GI symptoms (diarrhea, nausea)" />
+                  </div>
                 </div>
               </Section>
 

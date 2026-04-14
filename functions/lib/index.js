@@ -27,7 +27,7 @@ var __rest = (this && this.__rest) || function (s, e) {
     return t;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPatientPortalMatches = exports.geminiProxy = exports.syncFormSubmissionToGoogleDrive = exports.syncSubmissionToWebhook = exports.syncPrecisionDiagnosticToGoogleDrive = exports.syncPrecisionScreeningToGoogleDrive = exports.syncConsentToGoogleDrive = void 0;
+exports.getPatientPortalMatches = exports.geminiProxy = exports.syncFormSubmissionToGoogleDrive = exports.syncSubmissionToWebhook = exports.syncPrecisionDiagnosticToGoogleDrive = exports.syncPrecisionScreeningToGoogleDrive = exports.syncConsentToGoogleDrive = exports.syncPatientIntakeToGoogleDrive = void 0;
 const firestore_1 = require("firebase-functions/v2/firestore");
 const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
@@ -36,6 +36,7 @@ const patientMatch_1 = require("./patientMatch");
 const geminiServer = require("./geminiServer");
 const admin = require("firebase-admin");
 const googleapis_1 = require("googleapis");
+const pdf_lib_1 = require("pdf-lib");
 admin.initializeApp();
 const geminiApiKey = (0, params_1.defineSecret)("GEMINI_API_KEY");
 const COMPLETED_FORMS_FOLDER_NAME = "completed forms";
@@ -124,6 +125,152 @@ async function uploadJsonToCompletedForms(params) {
     await docRef.update({ googleDriveFileId: fid });
     return fid !== null && fid !== void 0 ? fid : null;
 }
+async function getOrCreateWorkflowFolder(drive, rootFolderId, docId) {
+    const completedFormsFolderId = await getOrCreateCompletedFormsFolder(drive, rootFolderId);
+    const folderName = `patient-intake-${docId}`;
+    const existing = await findChildFolderId(drive, completedFormsFolderId, folderName);
+    if (existing)
+        return existing;
+    const created = await drive.files.create({
+        requestBody: {
+            name: folderName,
+            mimeType: "application/vnd.google-apps.folder",
+            parents: [completedFormsFolderId],
+        },
+        fields: "id",
+        supportsAllDrives: true,
+    });
+    const id = created.data.id;
+    if (!id)
+        throw new Error("Drive API did not return workflow folder id");
+    return id;
+}
+async function uploadFileToDrive(params) {
+    var _a;
+    const file = await params.drive.files.create({
+        requestBody: {
+            name: params.fileName,
+            parents: [params.folderId],
+        },
+        media: {
+            mimeType: params.mimeType,
+            body: params.body,
+        },
+        supportsAllDrives: true,
+    });
+    return (_a = file.data.id) !== null && _a !== void 0 ? _a : null;
+}
+function renderPatientIntakePdfHtml(data) {
+    const patient = (data.patient || {});
+    const questionnaires = (data.questionnaires || {});
+    const yesNo = (v) => (v ? "Yes" : "No");
+    const section = (title, obj) => {
+        const rows = Object.entries(obj || {})
+            .map(([k, v]) => `<li><strong>${k}</strong>: ${yesNo(v)}</li>`)
+            .join("");
+        return `<h3>${title}</h3><ul>${rows || "<li>No items</li>"}</ul>`;
+    };
+    return `
+    <html>
+      <body style="font-family: Arial, sans-serif; font-size: 12px;">
+        <h1>Patient Intake</h1>
+        <p><strong>Submission ID:</strong> ${String(data.id || "")}</p>
+        <p><strong>Patient:</strong> ${String(patient.fullName || "")}</p>
+        <p><strong>Email:</strong> ${String(patient.email || "")}</p>
+        <p><strong>DOB:</strong> ${String(patient.dateOfBirth || "")}</p>
+        ${section("Respiratory", questionnaires.respiratory)}
+        ${section("UTI", questionnaires.uti)}
+        ${section("STI", questionnaires.sti)}
+        ${section("Nail Fungus", questionnaires.nailFungus)}
+      </body>
+    </html>
+  `;
+}
+async function generatePdfBufferFromHtml(html) {
+    const stripped = html
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    const pdf = await pdf_lib_1.PDFDocument.create();
+    const page = pdf.addPage([612, 792]);
+    const font = await pdf.embedFont(pdf_lib_1.StandardFonts.Helvetica);
+    const lines = [];
+    for (let i = 0; i < stripped.length; i += 100) {
+        lines.push(stripped.slice(i, i + 100));
+    }
+    let y = 760;
+    for (const line of lines) {
+        page.drawText(line, { x: 36, y, size: 10, font, color: (0, pdf_lib_1.rgb)(0.1, 0.1, 0.1) });
+        y -= 14;
+        if (y < 30)
+            break;
+    }
+    const bytes = await pdf.save();
+    return Buffer.from(bytes);
+}
+exports.syncPatientIntakeToGoogleDrive = (0, firestore_1.onDocumentCreated)("patientIntakes/{docId}", async (event) => {
+    var _a, _b, _c, _d, _e, _f;
+    const snap = event.data;
+    if (!snap)
+        return null;
+    const docId = event.params.docId;
+    const data = snap.data();
+    if ((data === null || data === void 0 ? void 0 : data.sendToGoogleDrive) === false)
+        return null;
+    const rootId = driveFolderId.value();
+    if (!rootId)
+        return null;
+    try {
+        const drive = createDriveClient();
+        const workflowFolderId = await getOrCreateWorkflowFolder(drive, rootId, docId);
+        const normalized = {
+            id: docId,
+            type: "patientIntake",
+            submittedAt: firestoreTimestampToIso(data.submittedAt),
+            submittedByUid: (_a = data.submittedByUid) !== null && _a !== void 0 ? _a : null,
+            collectorName: (_b = data.collectorName) !== null && _b !== void 0 ? _b : null,
+            patient: (_c = data.patient) !== null && _c !== void 0 ? _c : null,
+            questionnaires: (_d = data.questionnaires) !== null && _d !== void 0 ? _d : null,
+            documents: (_e = data.documents) !== null && _e !== void 0 ? _e : null,
+            consent: {
+                signature: (_f = data.signature) !== null && _f !== void 0 ? _f : "",
+                consentChecked: data.consentChecked === true,
+            },
+        };
+        const html = renderPatientIntakePdfHtml(normalized);
+        const pdfBuffer = await generatePdfBufferFromHtml(html);
+        const dateTag = new Date().toISOString().slice(0, 10);
+        const pdfFileId = await uploadFileToDrive({
+            drive,
+            folderId: workflowFolderId,
+            fileName: `patient-intake-${docId}-${dateTag}.pdf`,
+            mimeType: "application/pdf",
+            body: pdfBuffer,
+        });
+        const jsonFileId = await uploadFileToDrive({
+            drive,
+            folderId: workflowFolderId,
+            fileName: `patient-intake-${docId}-${dateTag}.json`,
+            mimeType: "application/json",
+            body: JSON.stringify(normalized, null, 2),
+        });
+        await snap.ref.update({
+            googleDriveFileId: pdfFileId,
+            googleDrivePdfFileId: pdfFileId,
+            googleDriveJsonFileId: jsonFileId,
+            googleDriveWorkflowFolderId: workflowFolderId,
+        });
+        return { pdfFileId, jsonFileId, workflowFolderId };
+    }
+    catch (err) {
+        firebase_functions_1.logger.error("Google Drive upload failed (patient intake)", err);
+        await snap.ref.update({
+            googleDriveError: err instanceof Error ? err.message : "Upload failed",
+        });
+        throw err;
+    }
+});
 /**
  * Uploads consent form data to Google Drive as JSON under …/completed forms/
  */
@@ -431,9 +578,14 @@ exports.getPatientPortalMatches = (0, https_1.onCall)({ region: "us-central1" },
         .collection("consentSubmissions")
         .where("submittedByUid", "==", uid)
         .get();
+    const intakeSnap = await admin
+        .firestore()
+        .collection("patientIntakes")
+        .where("submittedByUid", "==", uid)
+        .get();
     const consentFullNames = [];
     const consentEmails = [];
-    for (const d of consentSnap.docs) {
+    for (const d of [...consentSnap.docs, ...intakeSnap.docs]) {
         const p = d.data().patient;
         if (p === null || p === void 0 ? void 0 : p.fullName)
             consentFullNames.push(String(p.fullName));

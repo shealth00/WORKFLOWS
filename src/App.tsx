@@ -49,12 +49,19 @@ const PageFallback = () => (
   </div>
 );
 
+const EMAIL_LOGIN_HOSTS = new Set(['forms.sally.health', 'www.forms.sally.health']);
+
+function shouldForceEmailLoginHost() {
+  if (typeof window === 'undefined') return false;
+  return EMAIL_LOGIN_HOSTS.has(window.location.hostname.toLowerCase());
+}
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
   if (loading) return <PageFallback />;
   
-  if (!user) return <Navigate to="/" />;
+  if (!user) return <Navigate to={shouldForceEmailLoginHost() ? '/login' : '/'} />;
   return <>{children}</>;
 };
 
@@ -63,6 +70,7 @@ function DashboardOrConsent() {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (user) return <Navigate to="/workspace" replace />;
+  if (shouldForceEmailLoginHost()) return <Navigate to="/login" replace />;
   return <Dashboard />;
 }
 

@@ -8,6 +8,9 @@ import { useAuth } from '../AuthContext';
 import Navbar from '../components/Navbar';
 import { Loader2 } from 'lucide-react';
 import { storage, ref, uploadBytes, getDownloadURL, db, collection, addDoc, serverTimestamp } from '../firebase';
+import ClinicalQuestionnaires from '../components/intake/ClinicalQuestionnaires';
+import DocumentUploads from '../components/intake/DocumentUploads';
+import type { ClinicalQuestionnairesValue } from '../types/intake';
 
 const ConsentForm: React.FC = () => {
   const { user } = useAuth();
@@ -41,10 +44,14 @@ const ConsentForm: React.FC = () => {
     insuranceMedicaidCardUrlBack: '',
     idCardUrlFront: '',
     idCardUrlBack: '',
+    driverLicenseUrlFront: '',
+    driverLicenseUrlBack: '',
+    stateIdUrlFront: '',
+    stateIdUrlBack: '',
     appointment: '',
   });
 
-  const [respiratory, setRespiratory] = useState({
+  const [respiratory, setRespiratory] = useState<ClinicalQuestionnairesValue['respiratory']>({
     fever: false,
     cough: false,
     shortnessOfBreath: false,
@@ -55,14 +62,14 @@ const ConsentForm: React.FC = () => {
     compromisedImmune: false,
   });
 
-  const [uti, setUti] = useState({
+  const [uti, setUti] = useState<ClinicalQuestionnairesValue['uti']>({
     dysuria: false,
     urgency: false,
     pelvicPain: false,
     catheter: false,
   });
 
-  const [sti, setSti] = useState({
+  const [sti, setSti] = useState<ClinicalQuestionnairesValue['sti']>({
     discharge: false,
     painUrination: false,
     painIntercourse: false,
@@ -75,7 +82,7 @@ const ConsentForm: React.FC = () => {
     partnerDiagnosed: false,
   });
 
-  const [nailFungus, setNailFungus] = useState({
+  const [nailFungus, setNailFungus] = useState<ClinicalQuestionnairesValue['nailFungus']>({
     discoloration: false,
     brittleness: false,
     distortion: false,
@@ -178,7 +185,11 @@ const ConsentForm: React.FC = () => {
     | 'insurance-medicaid-front'
     | 'insurance-medicaid-back'
     | 'id-front'
-    | 'id-back';
+    | 'id-back'
+    | 'driver-license-front'
+    | 'driver-license-back'
+    | 'state-id-front'
+    | 'state-id-back';
 
   const handleFileUpload = async (file: File, kind: UploadKind) => {
     if (!user || !file) return;
@@ -198,6 +209,10 @@ const ConsentForm: React.FC = () => {
         else if (kind === 'insurance-medicaid-back') updates.insuranceMedicaidCardUrlBack = url;
         else if (kind === 'id-front') updates.idCardUrlFront = url;
         else if (kind === 'id-back') updates.idCardUrlBack = url;
+        else if (kind === 'driver-license-front') updates.driverLicenseUrlFront = url;
+        else if (kind === 'driver-license-back') updates.driverLicenseUrlBack = url;
+        else if (kind === 'state-id-front') updates.stateIdUrlFront = url;
+        else if (kind === 'state-id-back') updates.stateIdUrlBack = url;
         return { ...p, ...updates };
       });
     } catch (err) {
@@ -224,11 +239,32 @@ const ConsentForm: React.FC = () => {
     setSubmitting(true);
     try {
       const signatureImageDataUrl = captureSignatureDataUrl();
+      const questionnaires: ClinicalQuestionnairesValue = {
+        respiratory,
+        uti,
+        sti,
+        nailFungus,
+      };
       const payload = {
         submittedAt: serverTimestamp(),
         submittedByUid: user.uid,
         collectorName: collectorName.trim() || null,
         patient,
+        questionnaires,
+        documents: {
+          driverLicenseUrlFront: patient.driverLicenseUrlFront,
+          driverLicenseUrlBack: patient.driverLicenseUrlBack,
+          stateIdUrlFront: patient.stateIdUrlFront,
+          stateIdUrlBack: patient.stateIdUrlBack,
+          insuranceTraditionalCardUrlFront: patient.insuranceTraditionalCardUrlFront,
+          insuranceTraditionalCardUrlBack: patient.insuranceTraditionalCardUrlBack,
+          insuranceAdvantageCardUrlFront: patient.insuranceAdvantageCardUrlFront,
+          insuranceAdvantageCardUrlBack: patient.insuranceAdvantageCardUrlBack,
+          insuranceMedicaidCardUrlFront: patient.insuranceMedicaidCardUrlFront,
+          insuranceMedicaidCardUrlBack: patient.insuranceMedicaidCardUrlBack,
+          idCardUrlFront: patient.idCardUrlFront,
+          idCardUrlBack: patient.idCardUrlBack,
+        },
         respiratory,
         uti,
         sti,
@@ -236,9 +272,10 @@ const ConsentForm: React.FC = () => {
         signature,
         signatureImageDataUrl,
         consentChecked,
+        source: 'patient-intake-v2',
         sendToGoogleDrive: true,
       };
-      await addDoc(collection(db, 'consentSubmissions'), payload);
+      await addDoc(collection(db, 'patientIntakes'), payload);
       setSubmitted(true);
     } catch (err) {
       console.error('Submit failed', err);
@@ -279,18 +316,6 @@ const ConsentForm: React.FC = () => {
       </div>
     );
   }
-
-  const checkbox = (state: Record<string, boolean>, setState: React.Dispatch<React.SetStateAction<Record<string, boolean>>>, key: string, label: string) => (
-    <label key={key} className="flex items-center gap-3 py-1.5">
-      <input
-        type="checkbox"
-        checked={state[key] || false}
-        onChange={(e) => setState((s) => ({ ...s, [key]: e.target.checked }))}
-        className="w-4 h-4 text-orange-600 border-black/20 rounded focus:ring-orange-500"
-      />
-      <span className="text-sm">{label}</span>
-    </label>
-  );
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -422,53 +447,16 @@ const ConsentForm: React.FC = () => {
                       className="w-full mt-2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
-                  {/* Driver license – front and back */}
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Driver license / State ID</label>
-                    <p className="text-xs text-slate-500 mb-2">Upload both front and back of your driver license or state ID.</p>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Front</label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          disabled={!!uploading['id-front']}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleFileUpload(file, 'id-front');
-                          }}
-                          className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
-                        />
-                        {uploading['id-front'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
-                        {patient.idCardUrlFront && !uploading['id-front'] && (
-                          <div className="mt-2">
-                            <img src={patient.idCardUrlFront} alt="ID front" className="h-20 w-auto rounded border border-slate-200 object-cover" />
-                            <p className="mt-1 text-xs text-emerald-600">Front uploaded.</p>
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Back</label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          disabled={!!uploading['id-back']}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleFileUpload(file, 'id-back');
-                          }}
-                          className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
-                        />
-                        {uploading['id-back'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
-                        {patient.idCardUrlBack && !uploading['id-back'] && (
-                          <div className="mt-2">
-                            <img src={patient.idCardUrlBack} alt="ID back" className="h-20 w-auto rounded border border-slate-200 object-cover" />
-                            <p className="mt-1 text-xs text-emerald-600">Back uploaded.</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  <DocumentUploads
+                    documents={{
+                      driverLicenseUrlFront: patient.driverLicenseUrlFront,
+                      driverLicenseUrlBack: patient.driverLicenseUrlBack,
+                      stateIdUrlFront: patient.stateIdUrlFront,
+                      stateIdUrlBack: patient.stateIdUrlBack,
+                    }}
+                    uploading={uploading}
+                    onUpload={(file, kind) => handleFileUpload(file, kind as UploadKind)}
+                  />
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-4">Insurance</label>
                     <div className="grid gap-4 sm:grid-cols-3">
@@ -671,91 +659,15 @@ const ConsentForm: React.FC = () => {
                 </div>
               </section>
 
-              {/* Respiratory Panel */}
-              <section className="pt-6 border-t border-slate-200">
-                <h2 className="text-lg font-semibold text-slate-800 mb-1">Symptoms Screening Questionnaire</h2>
-                <h3 className="text-base font-medium text-slate-700 mb-2">Respiratory Panel Screening</h3>
-                <p className="text-sm text-slate-600 mb-4">
-                  Used to identify candidates for Flu, COVID-19, RSV, and other respiratory pathogen testing.
-                </p>
-                <p className="text-sm font-medium text-slate-700 mb-2">Current symptoms (check all that apply)</p>
-                <div className="grid gap-1 sm:grid-cols-2">
-                  {checkbox(respiratory, setRespiratory, 'fever', 'Fever (> 100.4°F/38°C) or chills')}
-                  {checkbox(respiratory, setRespiratory, 'cough', 'Cough (new or worsening)')}
-                  {checkbox(respiratory, setRespiratory, 'shortnessOfBreath', 'Shortness of breath or difficulty breathing')}
-                  {checkbox(respiratory, setRespiratory, 'congestion', 'Congestion or runny nose')}
-                  {checkbox(respiratory, setRespiratory, 'fatigue', 'Fatigue / muscle or body aches')}
-                  {checkbox(respiratory, setRespiratory, 'lossOfTasteSmell', 'New loss of taste or smell')}
-                </div>
-                <p className="text-sm font-medium text-slate-700 mt-4 mb-2">Risk factors & history</p>
-                <div className="space-y-1">
-                  {checkbox(respiratory, setRespiratory, 'closeContact', 'Close contact with someone diagnosed with COVID-19, Flu, or RSV in the last 14 days?')}
-                  {checkbox(respiratory, setRespiratory, 'compromisedImmune', 'Do you have a compromised immune system?')}
-                </div>
-                <p className="text-xs text-slate-500 mt-3 italic">
-                  Provider note: If patient checks 2+ symptoms or has 1 symptom + exposure, order Respiratory Pathogen Panel (RPP).
-                </p>
-              </section>
-
-              {/* UTI */}
-              <section className="pt-6 border-t border-slate-200">
-                <h3 className="text-base font-medium text-slate-700 mb-2">Urinary Tract Infection (UTI) Screening</h3>
-                <p className="text-sm text-slate-600 mb-4">Used to identify candidates for Urinalysis and Urine Culture/PCR.</p>
-                <p className="text-sm font-medium text-slate-700 mb-2">Current symptoms (check all that apply)</p>
-                <div className="space-y-1">
-                  {checkbox(uti, setUti, 'dysuria', 'Dysuria (burning or pain when urinating)')}
-                  {checkbox(uti, setUti, 'urgency', 'Urinary urgency')}
-                  {checkbox(uti, setUti, 'pelvicPain', 'Pelvic pain (women) or rectal pain (men)')}
-                </div>
-                <p className="text-sm font-medium text-slate-700 mt-3 mb-2">Risk factors</p>
-                {checkbox(uti, setUti, 'catheter', 'Use of a urinary catheter?')}
-              </section>
-
-              {/* STI */}
-              <section className="pt-6 border-t border-slate-200">
-                <h3 className="text-base font-medium text-slate-700 mb-2">Sexually Transmitted Infection (STI) Screening</h3>
-                <p className="text-sm text-slate-600 mb-4">Used to identify candidates for Chlamydia, Gonorrhea, Trichomonas, Mycoplasma, etc.</p>
-                <p className="text-sm font-medium text-slate-700 mb-2">Current symptoms (check all that apply)</p>
-                <div className="grid gap-1 sm:grid-cols-2">
-                  {checkbox(sti, setSti, 'discharge', 'Unusual discharge from penis, vagina, or anus')}
-                  {checkbox(sti, setSti, 'painUrination', 'Pain or burning during urination')}
-                  {checkbox(sti, setSti, 'painIntercourse', 'Pain during sexual intercourse')}
-                  {checkbox(sti, setSti, 'bumpsSores', 'Bumps, blisters, sores, or warts on or around genitals/mouth')}
-                  {checkbox(sti, setSti, 'itching', 'Itching or irritation in the genital area')}
-                  {checkbox(sti, setSti, 'lowerAbdominalPain', 'Lower abdominal pain')}
-                </div>
-                <p className="text-sm font-medium text-slate-700 mt-4 mb-2">Risk factors (lookback 6–12 months)</p>
-                <div className="space-y-1">
-                  {checkbox(sti, setSti, 'newPartner', 'New sexual partner or multiple partners?')}
-                  {checkbox(sti, setSti, 'unprotected', 'Unprotected intercourse (vaginal, anal, or oral)?')}
-                  {checkbox(sti, setSti, 'pastSTI', 'Past history of STIs?')}
-                  {checkbox(sti, setSti, 'partnerDiagnosed', 'Partner recently diagnosed with an STI?')}
-                </div>
-                <p className="text-xs text-slate-500 mt-3 italic">
-                  Provider note: If patient is symptomatic OR high risk (even if asymptomatic), order Comprehensive STI Panel.
-                </p>
-              </section>
-
-              {/* Nail fungus */}
-              <section className="pt-6 border-t border-slate-200">
-                <h3 className="text-base font-medium text-slate-700 mb-2">Nail Fungus (Onychomycosis) Screening</h3>
-                <p className="text-sm text-slate-600 mb-4">Used to identify candidates for Fungal Culture or PCR testing.</p>
-                <p className="text-sm font-medium text-slate-700 mb-2">Visual assessment (check all that apply)</p>
-                <div className="space-y-1">
-                  {checkbox(nailFungus, setNailFungus, 'discoloration', 'Discoloration: nails white, yellow, or brown')}
-                  {checkbox(nailFungus, setNailFungus, 'brittleness', 'Brittleness: nails crumbly, ragged, or brittle')}
-                  {checkbox(nailFungus, setNailFungus, 'distortion', 'Distortion: nails misshapen or lifting from nail bed')}
-                  {checkbox(nailFungus, setNailFungus, 'debris', 'Debris under the nail')}
-                </div>
-                <p className="text-sm font-medium text-slate-700 mt-3 mb-2">History</p>
-                <div className="space-y-1">
-                  {checkbox(nailFungus, setNailFungus, 'athleteFoot', 'History of Athlete\'s Foot (Tinea Pedis)?')}
-                  {checkbox(nailFungus, setNailFungus, 'communalShower', 'Visited a communal shower/pool or nail salon recently?')}
-                </div>
-                <p className="text-xs text-slate-500 mt-3 italic">
-                  Provider note: If patient exhibits thickening + discoloration, order Nail Fungal Pathogen Panel.
-                </p>
-              </section>
+              <ClinicalQuestionnaires
+                value={{ respiratory, uti, sti, nailFungus }}
+                onChange={(next) => {
+                  setRespiratory(next.respiratory);
+                  setUti(next.uti);
+                  setSti(next.sti);
+                  setNailFungus(next.nailFungus);
+                }}
+              />
 
               <p className="text-xs text-slate-500 border-t border-slate-200 pt-6">
                 This screening tool is for informational and intake purposes only and does not constitute a medical diagnosis. All testing decisions should be made by a licensed healthcare professional.

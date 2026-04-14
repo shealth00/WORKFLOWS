@@ -28,6 +28,7 @@ import * as admin from "firebase-admin";
 import type { DocumentReference, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { google } from "googleapis";
 import type { drive_v3 } from "googleapis";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 admin.initializeApp();
 
@@ -139,6 +140,164 @@ async function uploadJsonToCompletedForms(params: {
   await docRef.update({ googleDriveFileId: fid });
   return fid ?? null;
 }
+
+async function getOrCreateWorkflowFolder(
+  drive: drive_v3.Drive,
+  rootFolderId: string,
+  docId: string
+): Promise<string> {
+  const completedFormsFolderId = await getOrCreateCompletedFormsFolder(drive, rootFolderId);
+  const folderName = `patient-intake-${docId}`;
+  const existing = await findChildFolderId(drive, completedFormsFolderId, folderName);
+  if (existing) return existing;
+  const created = await drive.files.create({
+    requestBody: {
+      name: folderName,
+      mimeType: "application/vnd.google-apps.folder",
+      parents: [completedFormsFolderId],
+    },
+    fields: "id",
+    supportsAllDrives: true,
+  });
+  const id = created.data.id;
+  if (!id) throw new Error("Drive API did not return workflow folder id");
+  return id;
+}
+
+async function uploadFileToDrive(params: {
+  drive: drive_v3.Drive;
+  folderId: string;
+  fileName: string;
+  mimeType: string;
+  body: string | Buffer;
+}): Promise<string | null> {
+  const file = await params.drive.files.create({
+    requestBody: {
+      name: params.fileName,
+      parents: [params.folderId],
+    },
+    media: {
+      mimeType: params.mimeType,
+      body: params.body,
+    },
+    supportsAllDrives: true,
+  });
+  return file.data.id ?? null;
+}
+
+function renderPatientIntakePdfHtml(data: Record<string, unknown>): string {
+  const patient = (data.patient || {}) as Record<string, unknown>;
+  const questionnaires = (data.questionnaires || {}) as Record<string, Record<string, boolean>>;
+  const yesNo = (v: unknown) => (v ? "Yes" : "No");
+  const section = (title: string, obj?: Record<string, boolean>) => {
+    const rows = Object.entries(obj || {})
+      .map(([k, v]) => `<li><strong>${k}</strong>: ${yesNo(v)}</li>`)
+      .join("");
+    return `<h3>${title}</h3><ul>${rows || "<li>No items</li>"}</ul>`;
+  };
+  return `
+    <html>
+      <body style="font-family: Arial, sans-serif; font-size: 12px;">
+        <h1>Patient Intake</h1>
+        <p><strong>Submission ID:</strong> ${String(data.id || "")}</p>
+        <p><strong>Patient:</strong> ${String(patient.fullName || "")}</p>
+        <p><strong>Email:</strong> ${String(patient.email || "")}</p>
+        <p><strong>DOB:</strong> ${String(patient.dateOfBirth || "")}</p>
+        ${section("Respiratory", questionnaires.respiratory)}
+        ${section("UTI", questionnaires.uti)}
+        ${section("STI", questionnaires.sti)}
+        ${section("Nail Fungus", questionnaires.nailFungus)}
+      </body>
+    </html>
+  `;
+}
+
+async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
+  const stripped = html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([612, 792]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const lines: string[] = [];
+  for (let i = 0; i < stripped.length; i += 100) {
+    lines.push(stripped.slice(i, i + 100));
+  }
+  let y = 760;
+  for (const line of lines) {
+    page.drawText(line, { x: 36, y, size: 10, font, color: rgb(0.1, 0.1, 0.1) });
+    y -= 14;
+    if (y < 30) break;
+  }
+  const bytes = await pdf.save();
+  return Buffer.from(bytes);
+}
+
+export const syncPatientIntakeToGoogleDrive = onDocumentCreated(
+  "patientIntakes/{docId}",
+  async (event: FirestoreEvent<QueryDocumentSnapshot | undefined>) => {
+    const snap = event.data;
+    if (!snap) return null;
+    const docId = event.params.docId;
+    const data = snap.data();
+    if (data?.sendToGoogleDrive === false) return null;
+
+    const rootId = driveFolderId.value();
+    if (!rootId) return null;
+
+    try {
+      const drive = createDriveClient();
+      const workflowFolderId = await getOrCreateWorkflowFolder(drive, rootId, docId);
+      const normalized = {
+        id: docId,
+        type: "patientIntake",
+        submittedAt: firestoreTimestampToIso(data.submittedAt),
+        submittedByUid: data.submittedByUid ?? null,
+        collectorName: data.collectorName ?? null,
+        patient: data.patient ?? null,
+        questionnaires: data.questionnaires ?? null,
+        documents: data.documents ?? null,
+        consent: {
+          signature: data.signature ?? "",
+          consentChecked: data.consentChecked === true,
+        },
+      };
+      const html = renderPatientIntakePdfHtml(normalized as Record<string, unknown>);
+      const pdfBuffer = await generatePdfBufferFromHtml(html);
+      const dateTag = new Date().toISOString().slice(0, 10);
+
+      const pdfFileId = await uploadFileToDrive({
+        drive,
+        folderId: workflowFolderId,
+        fileName: `patient-intake-${docId}-${dateTag}.pdf`,
+        mimeType: "application/pdf",
+        body: pdfBuffer,
+      });
+      const jsonFileId = await uploadFileToDrive({
+        drive,
+        folderId: workflowFolderId,
+        fileName: `patient-intake-${docId}-${dateTag}.json`,
+        mimeType: "application/json",
+        body: JSON.stringify(normalized, null, 2),
+      });
+      await snap.ref.update({
+        googleDriveFileId: pdfFileId,
+        googleDrivePdfFileId: pdfFileId,
+        googleDriveJsonFileId: jsonFileId,
+        googleDriveWorkflowFolderId: workflowFolderId,
+      });
+      return { pdfFileId, jsonFileId, workflowFolderId };
+    } catch (err) {
+      logger.error("Google Drive upload failed (patient intake)", err);
+      await snap.ref.update({
+        googleDriveError: err instanceof Error ? err.message : "Upload failed",
+      });
+      throw err;
+    }
+  }
+);
 
 /**
  * Uploads consent form data to Google Drive as JSON under …/completed forms/
@@ -465,9 +624,14 @@ export const getPatientPortalMatches = onCall({ region: "us-central1" }, async (
     .collection("consentSubmissions")
     .where("submittedByUid", "==", uid)
     .get();
+  const intakeSnap = await admin
+    .firestore()
+    .collection("patientIntakes")
+    .where("submittedByUid", "==", uid)
+    .get();
   const consentFullNames: string[] = [];
   const consentEmails: string[] = [];
-  for (const d of consentSnap.docs) {
+  for (const d of [...consentSnap.docs, ...intakeSnap.docs]) {
     const p = d.data().patient as { fullName?: string; email?: string } | undefined;
     if (p?.fullName) consentFullNames.push(String(p.fullName));
     if (p?.email) consentEmails.push(String(p.email));

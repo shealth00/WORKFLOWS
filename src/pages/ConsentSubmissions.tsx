@@ -21,6 +21,10 @@ interface ConsentSubmission {
     phone?: string;
     idCardUrlFront?: string;
     idCardUrlBack?: string;
+    driverLicenseUrlFront?: string;
+    driverLicenseUrlBack?: string;
+    stateIdUrlFront?: string;
+    stateIdUrlBack?: string;
     insuranceTraditionalCardUrlFront?: string;
     insuranceTraditionalCardUrlBack?: string;
     insuranceAdvantageCardUrlFront?: string;
@@ -42,9 +46,9 @@ const ConsentSubmissions: React.FC = () => {
     if (!user) return;
     const admin = isAdminUser(user.email ?? null, profile);
     const q = admin
-      ? query(collection(db, 'consentSubmissions'), orderBy('submittedAt', 'desc'))
+      ? query(collection(db, 'patientIntakes'), orderBy('submittedAt', 'desc'))
       : query(
-          collection(db, 'consentSubmissions'),
+          collection(db, 'patientIntakes'),
           where('submittedByUid', '==', user.uid),
           orderBy('submittedAt', 'desc')
         );
@@ -119,11 +123,13 @@ const ConsentSubmissions: React.FC = () => {
                         </p>
                       </div>
                       <div className="flex gap-1 flex-shrink-0 ml-2">
-                        {p.idCardUrlFront && <img src={p.idCardUrlFront} alt="" className="h-8 w-10 rounded object-cover border border-slate-200" />}
-                        {p.idCardUrlBack && <img src={p.idCardUrlBack} alt="" className="h-8 w-10 rounded object-cover border border-slate-200" />}
+                        {(p.driverLicenseUrlFront || p.idCardUrlFront) && <img src={p.driverLicenseUrlFront || p.idCardUrlFront} alt="" className="h-8 w-10 rounded object-cover border border-slate-200" />}
+                        {(p.driverLicenseUrlBack || p.idCardUrlBack) && <img src={p.driverLicenseUrlBack || p.idCardUrlBack} alt="" className="h-8 w-10 rounded object-cover border border-slate-200" />}
+                        {p.stateIdUrlFront && <img src={p.stateIdUrlFront} alt="" className="h-8 w-10 rounded object-cover border border-slate-200" />}
+                        {p.stateIdUrlBack && <img src={p.stateIdUrlBack} alt="" className="h-8 w-10 rounded object-cover border border-slate-200" />}
                         {p.insuranceMedicaidCardUrlFront && <img src={p.insuranceMedicaidCardUrlFront} alt="" className="h-8 w-10 rounded object-cover border border-slate-200" />}
                         {p.insuranceMedicaidCardUrlBack && <img src={p.insuranceMedicaidCardUrlBack} alt="" className="h-8 w-10 rounded object-cover border border-slate-200" />}
-                        {!p.idCardUrlFront && !p.idCardUrlBack && !p.insuranceMedicaidCardUrlFront && !p.insuranceMedicaidCardUrlBack && (
+                        {!p.idCardUrlFront && !p.idCardUrlBack && !p.driverLicenseUrlFront && !p.driverLicenseUrlBack && !p.stateIdUrlFront && !p.stateIdUrlBack && !p.insuranceMedicaidCardUrlFront && !p.insuranceMedicaidCardUrlBack && (
                           <span className="text-xs text-slate-400">No docs</span>
                         )}
                       </div>
@@ -167,19 +173,35 @@ const ConsentSubmissions: React.FC = () => {
                       <div>
                         <p className="text-xs font-medium text-slate-500 uppercase mb-2">Driver License / State ID</p>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                          {p.idCardUrlFront && (
+                          {(p.driverLicenseUrlFront || p.idCardUrlFront) && (
                             <div>
-                              <p className="text-xs text-slate-500 mb-1">Front</p>
-                              <a href={p.idCardUrlFront} target="_blank" rel="noopener noreferrer">
-                                <img src={p.idCardUrlFront} alt="ID front" className="h-24 w-auto rounded border border-slate-200 object-cover hover:opacity-90" />
+                              <p className="text-xs text-slate-500 mb-1">Driver license front</p>
+                              <a href={p.driverLicenseUrlFront || p.idCardUrlFront} target="_blank" rel="noopener noreferrer">
+                                <img src={p.driverLicenseUrlFront || p.idCardUrlFront} alt="Driver license front" className="h-24 w-auto rounded border border-slate-200 object-cover hover:opacity-90" />
                               </a>
                             </div>
                           )}
-                          {p.idCardUrlBack && (
+                          {(p.driverLicenseUrlBack || p.idCardUrlBack) && (
                             <div>
-                              <p className="text-xs text-slate-500 mb-1">Back</p>
-                              <a href={p.idCardUrlBack} target="_blank" rel="noopener noreferrer">
-                                <img src={p.idCardUrlBack} alt="ID back" className="h-24 w-auto rounded border border-slate-200 object-cover hover:opacity-90" />
+                              <p className="text-xs text-slate-500 mb-1">Driver license back</p>
+                              <a href={p.driverLicenseUrlBack || p.idCardUrlBack} target="_blank" rel="noopener noreferrer">
+                                <img src={p.driverLicenseUrlBack || p.idCardUrlBack} alt="Driver license back" className="h-24 w-auto rounded border border-slate-200 object-cover hover:opacity-90" />
+                              </a>
+                            </div>
+                          )}
+                          {p.stateIdUrlFront && (
+                            <div>
+                              <p className="text-xs text-slate-500 mb-1">State ID front</p>
+                              <a href={p.stateIdUrlFront} target="_blank" rel="noopener noreferrer">
+                                <img src={p.stateIdUrlFront} alt="State ID front" className="h-24 w-auto rounded border border-slate-200 object-cover hover:opacity-90" />
+                              </a>
+                            </div>
+                          )}
+                          {p.stateIdUrlBack && (
+                            <div>
+                              <p className="text-xs text-slate-500 mb-1">State ID back</p>
+                              <a href={p.stateIdUrlBack} target="_blank" rel="noopener noreferrer">
+                                <img src={p.stateIdUrlBack} alt="State ID back" className="h-24 w-auto rounded border border-slate-200 object-cover hover:opacity-90" />
                               </a>
                             </div>
                           )}
@@ -241,7 +263,7 @@ const ConsentSubmissions: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        {!p.idCardUrlFront && !p.idCardUrlBack && !p.insuranceTraditionalCardUrlFront && !p.insuranceTraditionalCardUrlBack && !p.insuranceAdvantageCardUrlFront && !p.insuranceAdvantageCardUrlBack && !p.insuranceMedicaidCardUrlFront && !p.insuranceMedicaidCardUrlBack && (
+                        {!p.idCardUrlFront && !p.idCardUrlBack && !p.driverLicenseUrlFront && !p.driverLicenseUrlBack && !p.stateIdUrlFront && !p.stateIdUrlBack && !p.insuranceTraditionalCardUrlFront && !p.insuranceTraditionalCardUrlBack && !p.insuranceAdvantageCardUrlFront && !p.insuranceAdvantageCardUrlBack && !p.insuranceMedicaidCardUrlFront && !p.insuranceMedicaidCardUrlBack && (
                           <p className="text-slate-500 text-sm">No document uploads</p>
                         )}
                       </div>
