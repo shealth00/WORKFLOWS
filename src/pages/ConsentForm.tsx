@@ -9,7 +9,6 @@ import Navbar from '../components/Navbar';
 import { Loader2 } from 'lucide-react';
 import { storage, ref, uploadBytes, getDownloadURL, db, collection, addDoc, serverTimestamp } from '../firebase';
 import ClinicalQuestionnaires from '../components/intake/ClinicalQuestionnaires';
-import DocumentUploads from '../components/intake/DocumentUploads';
 import type { ClinicalQuestionnairesValue } from '../types/intake';
 
 const ConsentForm: React.FC = () => {
@@ -329,11 +328,11 @@ const ConsentForm: React.FC = () => {
               <img src="/sally-health-badge.png" alt="Sally Health" className="w-14 h-14 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Sally Health Consent Form</h1>
-                <p className="text-sm text-slate-500 mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <p className="text-sm text-slate-500 mt-0.5">Tuesday, April 14, 2026</p>
               </div>
             </div>
             <p className="text-slate-600 -mt-2">
-              This form is to obtain your consent for chronic care management and ongoing care services at Sally Health.
+              This form is to obtain your consent for care, ongoing care, laboratory testing consent at Sally Health.
             </p>
 
             <form onSubmit={handleSubmit} className="mt-10 space-y-10">
@@ -392,9 +391,10 @@ const ConsentForm: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date of birth</label>
                     <input
-                      type="date"
+                      type="text"
                       value={patient.dateOfBirth}
                       onChange={(e) => setPatient((p) => ({ ...p, dateOfBirth: e.target.value }))}
+                      placeholder="mm/dd/yyyy"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
@@ -447,19 +447,9 @@ const ConsentForm: React.FC = () => {
                       className="w-full mt-2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
-                  <DocumentUploads
-                    documents={{
-                      driverLicenseUrlFront: patient.driverLicenseUrlFront,
-                      driverLicenseUrlBack: patient.driverLicenseUrlBack,
-                      stateIdUrlFront: patient.stateIdUrlFront,
-                      stateIdUrlBack: patient.stateIdUrlBack,
-                    }}
-                    uploading={uploading}
-                    onUpload={(file, kind) => handleFileUpload(file, kind as UploadKind)}
-                  />
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-4">Insurance</label>
-                    <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="grid gap-4 sm:grid-cols-2">
                       <div>
                         <label className="flex items-center gap-2 mb-2">
                           <input
@@ -477,7 +467,7 @@ const ConsentForm: React.FC = () => {
                           placeholder="Medicare ID number"
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mb-2"
                         />
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Insurance card – front</label>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">Upload insurance card image (front/back)</label>
                         <input
                           type="file"
                           accept="image/*"
@@ -495,7 +485,7 @@ const ConsentForm: React.FC = () => {
                             <p className="mt-1 text-xs text-emerald-600">Front uploaded.</p>
                           </div>
                         )}
-                        <label className="block text-xs font-medium text-slate-500 mb-1 mt-2">Insurance card – back</label>
+                        <label className="block text-xs font-medium text-slate-500 mb-1 mt-2">Choose file</label>
                         <input
                           type="file"
                           accept="image/*"
@@ -531,128 +521,34 @@ const ConsentForm: React.FC = () => {
                           placeholder="Medicare Advantage ID number"
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mb-2"
                         />
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Insurance card – front</label>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">Upload state ID / driver license image</label>
                         <input
                           type="file"
                           accept="image/*"
-                          disabled={!!uploading['insurance-advantage-front']}
+                          disabled={!!uploading['id-front']}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) handleFileUpload(file, 'insurance-advantage-front');
+                            if (file) handleFileUpload(file, 'id-front');
                           }}
                           className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100 mb-1"
                         />
-                        {uploading['insurance-advantage-front'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
-                        {patient.insuranceAdvantageCardUrlFront && !uploading['insurance-advantage-front'] && (
+                        {uploading['id-front'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
+                        {patient.idCardUrlFront && !uploading['id-front'] && (
                           <div className="mt-2">
-                            <img src={patient.insuranceAdvantageCardUrlFront} alt="Insurance front" className="h-16 w-auto rounded border border-slate-200 object-cover" />
-                            <p className="mt-1 text-xs text-emerald-600">Front uploaded.</p>
+                            <img src={patient.idCardUrlFront} alt="State ID / driver license" className="h-16 w-auto rounded border border-slate-200 object-cover" />
+                            <p className="mt-1 text-xs text-emerald-600">chosen file</p>
                           </div>
                         )}
-                        <label className="block text-xs font-medium text-slate-500 mb-1 mt-2">Insurance card – back</label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          disabled={!!uploading['insurance-advantage-back']}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleFileUpload(file, 'insurance-advantage-back');
-                          }}
-                          className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
-                        />
-                        {uploading['insurance-advantage-back'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
-                        {patient.insuranceAdvantageCardUrlBack && !uploading['insurance-advantage-back'] && (
-                          <div className="mt-2">
-                            <img src={patient.insuranceAdvantageCardUrlBack} alt="Insurance back" className="h-16 w-auto rounded border border-slate-200 object-cover" />
-                            <p className="mt-1 text-xs text-emerald-600">Back uploaded.</p>
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <label className="flex items-center gap-2 mb-2">
-                          <input
-                            type="checkbox"
-                            checked={patient.insuranceMedicaid}
-                            onChange={(e) => setPatient((p) => ({ ...p, insuranceMedicaid: e.target.checked }))}
-                            className="w-4 h-4 text-orange-600 rounded"
-                          />
-                          <span className="text-sm">Medicaid (optional)</span>
-                        </label>
-                        <div className="space-y-2">
-                          <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">Medicaid provider</label>
-                            <select
-                              value={patient.insuranceMedicaidProvider}
-                              onChange={(e) => setPatient((p) => ({ ...p, insuranceMedicaidProvider: e.target.value }))}
-                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                            >
-                              <option value="">Select provider</option>
-                              <option value="Aetna">Aetna</option>
-                              <option value="BCBS">BCBS (Blue Cross Blue Shield)</option>
-                              <option value="Humana">Humana</option>
-                              <option value="United">United Healthcare</option>
-                              <option value="UnitedCare">United Care Health</option>
-                            </select>
-                          </div>
-                          <input
-                            type="text"
-                            value={patient.insuranceMedicaidId}
-                            onChange={(e) => setPatient((p) => ({ ...p, insuranceMedicaidId: e.target.value }))}
-                            placeholder="Medicaid ID number"
-                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                          />
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <div>
-                              <label className="block text-xs font-medium text-slate-500 mb-1">Medicaid card – front</label>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                disabled={!!uploading['insurance-medicaid-front']}
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) handleFileUpload(file, 'insurance-medicaid-front');
-                                }}
-                                className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
-                              />
-                              {uploading['insurance-medicaid-front'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
-                              {patient.insuranceMedicaidCardUrlFront && !uploading['insurance-medicaid-front'] && (
-                                <div className="mt-2">
-                                  <img src={patient.insuranceMedicaidCardUrlFront} alt="Medicaid front" className="h-16 w-auto rounded border border-slate-200 object-cover" />
-                                  <p className="mt-1 text-xs text-emerald-600">Front uploaded.</p>
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-slate-500 mb-1">Medicaid card – back</label>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                disabled={!!uploading['insurance-medicaid-back']}
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) handleFileUpload(file, 'insurance-medicaid-back');
-                                }}
-                                className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-medium file:bg-slate-50 hover:file:bg-slate-100"
-                              />
-                              {uploading['insurance-medicaid-back'] && <p className="mt-1 text-xs text-slate-500">Uploading…</p>}
-                              {patient.insuranceMedicaidCardUrlBack && !uploading['insurance-medicaid-back'] && (
-                                <div className="mt-2">
-                                  <img src={patient.insuranceMedicaidCardUrlBack} alt="Medicaid back" className="h-16 w-auto rounded border border-slate-200 object-cover" />
-                                  <p className="mt-1 text-xs text-emerald-600">Back uploaded.</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Appointment</label>
                     <input
-                      type="datetime-local"
+                      type="text"
                       value={patient.appointment}
                       onChange={(e) => setPatient((p) => ({ ...p, appointment: e.target.value }))}
+                      placeholder="mm/dd/yyyy, --:-- --"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500"
                     />
                   </div>

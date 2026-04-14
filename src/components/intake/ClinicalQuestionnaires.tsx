@@ -45,6 +45,9 @@ export default function ClinicalQuestionnaires({ value, onChange }: ClinicalQues
           {checkbox(value.respiratory.closeContact, (checked) => onChange({ ...value, respiratory: { ...value.respiratory, closeContact: checked } }), "Close contact with someone diagnosed with COVID-19, Flu, or RSV in the last 14 days?")}
           {checkbox(value.respiratory.compromisedImmune, (checked) => onChange({ ...value, respiratory: { ...value.respiratory, compromisedImmune: checked } }), "Do you have a compromised immune system?")}
         </div>
+        <p className="text-xs text-slate-500 mt-3 italic">
+          Provider note: If patient checks 2+ symptoms or has 1 symptom + exposure, order Respiratory Pathogen Panel (RPP).
+        </p>
       </section>
 
       <section className="pt-6 border-t border-slate-200">
@@ -79,6 +82,9 @@ export default function ClinicalQuestionnaires({ value, onChange }: ClinicalQues
           {checkbox(value.sti.pastSTI, (checked) => onChange({ ...value, sti: { ...value.sti, pastSTI: checked } }), "Past history of STIs?")}
           {checkbox(value.sti.partnerDiagnosed, (checked) => onChange({ ...value, sti: { ...value.sti, partnerDiagnosed: checked } }), "Partner recently diagnosed with an STI?")}
         </div>
+        <p className="text-xs text-slate-500 mt-3 italic">
+          Provider note: If patient is symptomatic OR high risk (even if asymptomatic), order Comprehensive STI Panel.
+        </p>
       </section>
 
       <section className="pt-6 border-t border-slate-200">
@@ -96,6 +102,9 @@ export default function ClinicalQuestionnaires({ value, onChange }: ClinicalQues
           {checkbox(value.nailFungus.athleteFoot, (checked) => onChange({ ...value, nailFungus: { ...value.nailFungus, athleteFoot: checked } }), "History of Athlete's Foot (Tinea Pedis)?")}
           {checkbox(value.nailFungus.communalShower, (checked) => onChange({ ...value, nailFungus: { ...value.nailFungus, communalShower: checked } }), "Visited a communal shower/pool or nail salon recently?")}
         </div>
+        <p className="text-xs text-slate-500 mt-3 italic">
+          Provider note: If patient exhibits thickening + discoloration, order Nail Fungal Pathogen Panel.
+        </p>
       </section>
     </>
   );
