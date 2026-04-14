@@ -18,25 +18,22 @@ jobs:
           cache: "npm"
 
       - run: npm ci
-      - run: npm ci --prefix functions
       - run: npm run typecheck
       - run: npm run build
       - run: npm run test
 
       - name: Validate deploy auth secret
         run: |
-          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
-            echo "Missing required GitHub secret: GCP_SA_KEY"
-            echo "Add a JSON service-account key with deploy IAM roles, then rerun."
+          if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" ]; then
+            echo "Missing required GitHub secret: FIREBASE_SERVICE_ACCOUNT"
+            echo "Add a Firebase deploy service-account JSON key, then rerun."
             exit 1
           fi
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      - name: Deploy to Firebase Hosting (live)
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          create_credentials_file: true
-          export_environment_variables: true
-
-      - name: Deploy to Firebase (Hosting + Firestore rules + Functions)
-        run: npx firebase-tools deploy --only hosting,firestore:rules,functions --non-interactive --project gen-lang-client-0777929601
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
+          projectId: gen-lang-client-0777929601

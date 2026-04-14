@@ -16,11 +16,6 @@ Handoff
 - Run `npm run verify` again after Codex before you push.
 
 GitHub deploy secrets (Firebase)
-- Preferred: set repo secret `GCP_SA_KEY` (JSON key for a deploy service account) used by `google-github-actions/auth@v2`.
-- Required: `GCP_SA_KEY` must be present; the deploy workflow now fails fast when missing.
-- Minimum IAM roles for the deploy service account:
-  - `roles/firebase.admin`
-  - `roles/cloudfunctions.developer`
-  - `roles/firebasehosting.admin`
-  - `roles/datastore.indexAdmin`
-  - `roles/serviceusage.serviceUsageConsumer`
+- Required secret: `FIREBASE_SERVICE_ACCOUNT` (JSON key used by `FirebaseExtended/action-hosting-deploy@v0`).
+- `secrets.GITHUB_TOKEN` is used as `repoToken` by the action (no interactive `firebase login` or `FIREBASE_TOKEN` needed).
+- If missing, deploy workflow fails fast with a clear secret error.
