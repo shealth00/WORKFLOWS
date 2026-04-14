@@ -14,3 +14,13 @@ Handoff
 - Commit after Cursor.
 - Pull before Codex (or use separate branches if both run close together).
 - Run `npm run verify` again after Codex before you push.
+
+GitHub deploy secrets (Firebase)
+- Preferred: set repo secret `GCP_SA_KEY` (JSON key for a deploy service account) used by `google-github-actions/auth@v2`.
+- Temporary fallback: keep `FIREBASE_TOKEN` during migration; remove once service-account deploys are consistently green.
+- Minimum IAM roles for the deploy service account:
+  - `roles/firebase.admin`
+  - `roles/cloudfunctions.developer`
+  - `roles/firebasehosting.admin`
+  - `roles/datastore.indexAdmin`
+  - `roles/serviceusage.serviceUsageConsumer`
